@@ -76,45 +76,13 @@
     {
       "event": "SessionStart",
       "targets": ["claude"],
-      "command": "python3 \"{root}/.harness/hooks/progress_hook.py\""
-    },
-    {
-      "event": "UserPromptSubmit",
-      "targets": ["claude"],
-      "command": "python3 \"{root}/.harness/hooks/progress_hook.py\""
+      "command": "python3 \"{root}/.harness/hooks/spec_notice.py\""
     },
     {
       "event": "PreToolUse",
-      "matcher": "Bash|Write|Edit|MultiEdit",
+      "matcher": "Write|Edit|MultiEdit",
       "targets": ["claude"],
-      "command": "python3 \"{root}/.harness/hooks/progress_hook.py\""
-    },
-    {
-      "event": "PostToolUse",
-      "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
-      "targets": ["claude"],
-      "command": "python3 \"{root}/.harness/hooks/progress_hook.py\""
-    },
-    {
-      "event": "PostToolUseFailure",
-      "matcher": "Bash",
-      "targets": ["claude"],
-      "command": "python3 \"{root}/.harness/hooks/progress_hook.py\""
-    },
-    {
-      "event": "PreCompact",
-      "targets": ["claude"],
-      "command": "python3 \"{root}/.harness/hooks/progress_hook.py\""
-    },
-    {
-      "event": "Stop",
-      "targets": ["claude"],
-      "command": "python3 \"{root}/.harness/hooks/progress_hook.py\""
-    },
-    {
-      "event": "SessionEnd",
-      "targets": ["claude"],
-      "command": "python3 \"{root}/.harness/hooks/progress_hook.py\""
+      "command": "python3 \"{root}/.harness/hooks/rule_injection.py\""
     }
   ]
 }

@@ -30,7 +30,6 @@ SHAPES = {
     "test_command": set(E10) | {"spec", "exit_code", "workflow_run_id"},
     "seed": set(E10) | {"action", "exit_code", "workflow_run_id", "spec"},
     "spec_write": set(E10) | {"spec", "version", "workflow_run_id"},
-    "progress_write": set(E10) | {"file", "workflow_run_id", "spec"},
     "workflow_phase": set(E10) | {"phase", "workflow_run_id", "spec", "spec_version"},
     "session_metrics": set(E10) | {
         "exploration_before_code", "noncode_writes_before_code", "code_writes",
@@ -645,13 +644,6 @@ class TestExistingLineShapes(BriefCase):
             line = self.assert_shape(self.read_events(directory, self.repo), "spec_write", active)
             self.assertEqual(line["version"], 3)
 
-    def test_progress_write_line(self):
-        progress = self.write_progress(self.repo, "0123456789abcdef-y.md")
-        for active, directory, env in self.each_context():
-            self.fire(self.post_tool_use_write(progress), directory, env)
-            line = self.assert_shape(self.read_events(directory, self.repo), "progress_write", active)
-            self.assertEqual(line["file"], "0123456789abcdef-y.md")
-
     def test_non_amend_workflow_phase_line(self):
         directory, env = self.context(True)
         for phase in ("implement_test", "verify"):
@@ -815,10 +807,10 @@ class TestSkillText(unittest.TestCase):
 
 
 class TestVersionAndMigration(BriefCase):
-    def test_version_file_is_0_49_0(self):
-        self.assertEqual(VERSION_FILE.read_text().strip(), "0.49.1")
+    def test_version_file_is_0_50_0(self):
+        self.assertEqual(VERSION_FILE.read_text().strip(), "0.50.0")
 
-    def test_dry_run_from_0_48_0_announces_only_the_0_49_0_migration(self):
+    def test_dry_run_from_0_48_0_announces_the_0_49_0_migration_and_later_ones(self):
         manifest_path = self.repo / ".harness" / "manifest.json"
         manifest = json.loads(manifest_path.read_text())
         manifest["version"] = "0.48.0"
@@ -829,7 +821,7 @@ class TestVersionAndMigration(BriefCase):
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE),
-                         ["0.49.0", "0.49.1"], result.stdout)
+                         ["0.49.0", "0.49.1", "0.50.0"], result.stdout)
         self.assertRegex(result.stdout, r"(?m)^migration 0\.49\.0: \S")
         section = re.split(r"\n(?=migration \d|Apply migration)",
                            result.stdout.split("migration 0.49.0:", 1)[1])[0].lower()

@@ -17,3 +17,8 @@ File: 92b5be21b6ef9b80-multi-person-telemetry-digest.md
 Summary: Planned future work to combine several people's telemetry and digest it; collection method and questions not decided; not started
 Related Files: analytics/importer.py, analytics/app.py, harness/lib/telemetry.py
 Related Symbols: import_pending, emit
+---
+File: 55581096177d4b3b-cross-session-task-transmission.md
+Summary: Replace the failed progress/continue-on approach for carrying task state across sessions; direction to be set from 2026-11 community opinion and research; not started
+Related Files: harness/hooks/progress_hook.py, harness/lib/progress.py, harness/skills/continue-on/SKILL.md
+Related Symbols: progress, continue-on

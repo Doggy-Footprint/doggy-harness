@@ -6,7 +6,6 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
-import config  # noqa: E402
 import spec_state  # noqa: E402
 
 PATHS = spec_state.PATHS
@@ -257,9 +256,8 @@ def cmd_session(_args) -> int:
             continue
         if status in {"draft", "active"}:
             print(
-                f"spec lifecycle: {path.relative_to(REPO_ROOT)} is {status}; read the Next Session of the latest "
-                f"progress in {PATHS.progress.relative_to(config.REPO_ROOT)}/ with `/continue-on`, or compare base "
-                f"commit {values.get('base_commit', 'unknown')} with HEAD, before resuming or aborting",
+                f"spec lifecycle: {path.relative_to(REPO_ROOT)} is {status}; compare base commit "
+                f"{values.get('base_commit', 'unknown')} with HEAD before resuming or aborting",
                 file=sys.stderr,
             )
     return 0

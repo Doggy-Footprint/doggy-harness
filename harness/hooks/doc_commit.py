@@ -7,7 +7,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 import config  # noqa: E402
-import progress  # noqa: E402
 
 DOCS_ROOT = config.load_paths().docs_root.resolve()
 UNSTAMPED_NAMES = {"index.md", "stale.md"}
@@ -42,13 +41,6 @@ def target_path(payload: dict) -> Path | None:
     try:
         relative = path.relative_to(DOCS_ROOT)
     except ValueError:
-        return None
-    # progress_hook.py stamps progress files itself; Claude Code runs matching
-    # PostToolUse hooks concurrently, so two writers would lose an update.
-    if relative.parts[:1] == ("progress",):
-        return None
-    session_id = payload.get("session_id")
-    if relative.parts[:1] == ("progress-logs",) and session_id and progress.session_of(path) == session_id:
         return None
     return path if path.is_file() else None
 

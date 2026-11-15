@@ -2,7 +2,7 @@
 
 Directory: `agent-docs/try-n-fail/`.
 
-Records approaches a later task could plausibly try again: an attempt whose failure took real work to discover (an implementation, a run, or an investigation, not a reading of the code), or a concrete proposal the user rejected. Candidates come from a progress's `### Failed Attempts`, a spec's execution ledger, or a rejection in conversation. Show the draft to the user and write only after confirmation.
+Records approaches a later task could plausibly try again: an attempt whose failure took real work to discover (an implementation, a run, or an investigation, not a reading of the code), or a concrete proposal the user rejected. Candidates come from a spec's execution ledger or a rejection in conversation. Show the draft to the user and write only after confirmation.
 
 Required file structure:
 

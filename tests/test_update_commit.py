@@ -9,12 +9,10 @@ from pathlib import Path
 
 from test_installer import (
     IMPORT_BLOCK,
-    INSTALLER_RUN_RECORD,
     InstallerTestCase,
     run_git,
     run_installer,
 )
-from test_progress import load_progress
 
 OLD_VERSION = "0.39.0"
 OLD_BLOCK = "<!-- harness:begin 0.39.0 -->\n# Documentation Guide\n\nold full rule body\n<!-- harness:end -->\n"
@@ -450,67 +448,6 @@ class TestInstallDoesNotCommit(UpdateCommitCase):
                 self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
                 self.assertIn("--no-commit", result.stderr)
                 self.assertEqual(self.snapshot(repo), {})
-
-
-class TestInstallerRunRecord(UpdateCommitCase):
-    def fingerprint(self, repo):
-        return load_progress().git_worktree_fingerprint(repo, ".harness/")
-
-    def record(self, repo):
-        return json.loads((repo / INSTALLER_RUN_RECORD).read_text())
-
-    def test_h6_successful_update_records_pre_and_post_fingerprints(self):
-        repo = self.committed_install()
-        before = self.fingerprint(repo)
-
-        result = self.update(repo)
-
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        record = self.record(repo)
-        self.assertEqual(record["before"], before)
-        self.assertEqual(record["after"], self.fingerprint(repo))
-        self.assertNotEqual(record["before"], record["after"])
-
-    def test_h7_declined_migration_exit_writes_record_and_makes_no_commit(self):
-        repo = self.committed_install()
-        before = self.fingerprint(repo)
-        head = self.head(repo)
-
-        result = self.update(repo, answers="n\n")
-
-        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-        self.assertEqual(self.head(repo), head)
-        record = self.record(repo)
-        self.assertEqual(record["before"], before)
-        self.assertEqual(record["after"], self.fingerprint(repo))
-
-    def test_dry_run_writes_no_record(self):
-        repo = self.committed_install()
-
-        result = run_installer("update", str(repo), "--dry-run", forbid_input=True)
-
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertFalse((repo / INSTALLER_RUN_RECORD).exists())
-
-    def test_h8_gitignore_lists_the_record_after_install_and_after_update(self):
-        installed = self.install()
-        self.assertIn(INSTALLER_RUN_RECORD, [l.lstrip("/") for l in (installed / ".gitignore").read_text().splitlines()])
-
-        def drop_line(repo):
-            ignore = repo / ".gitignore"
-            kept = [line for line in ignore.read_text().splitlines() if line.lstrip("/") != INSTALLER_RUN_RECORD]
-            ignore.write_text("\n".join(kept) + "\n")
-
-        repo = self.committed_install(before_commit=drop_line)
-        self.assertNotIn(INSTALLER_RUN_RECORD, [l.lstrip("/") for l in (repo / ".gitignore").read_text().splitlines()])
-
-        result = self.update(repo)
-
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn(INSTALLER_RUN_RECORD, [l.lstrip("/") for l in (repo / ".gitignore").read_text().splitlines()])
-        self.assertEqual(run_git(repo, "check-ignore", "-q", "--", INSTALLER_RUN_RECORD).returncode, 0)
-        self.assertNotIn(INSTALLER_RUN_RECORD, self.commit_paths(repo))
-        self.assertEqual(self.status(repo), "")
 
 
 class TestMigration0400(UpdateCommitCase):

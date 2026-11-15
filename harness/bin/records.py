@@ -15,7 +15,7 @@ PATHS = config.load_paths()
 MANAGED_FILENAME_RE = re.compile(r"^[0-9a-f]{16}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
 SEPARATOR_RE = re.compile(r"^---\s*$")
 FILE_LINE_RE = re.compile(r"^File:\s*(.*)$")
-EXEMPT_DIRS = {"specs", "spec-logs", "progress", "progress-logs", "adr", "rejections", "handoff"}
+EXEMPT_DIRS = {"specs", "spec-logs", "adr", "rejections", "handoff"}
 
 
 class Refusal(Exception):
