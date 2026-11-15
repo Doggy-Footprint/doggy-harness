@@ -1,7 +1,7 @@
 {
   "version": "0.50.0",
   "files": {
-    ".harness/config.default.json": "04aab9383dd877c1cea87ab9a9a1682da9f5de5e5d01fc2e9d871d9f2bb710c7",
+    ".harness/config.default.json": "c21d7705713f2a9bc8cd9527d87b8964b58c7ae1b5e63e83446371b2c68a4dbd",
     ".harness/VERSION": "7f897019268dc93e942ade9ee8d9015bbc17f630e1a3de24bfee4ddc2dd53cc2",
     ".harness/instructions/index-and-staleness.md": "5e712f474b14dd616ce7d53a3b385c15cb0a8451e1baaedf8c0e9ed7ef6ca7cb",
     ".harness/instructions/try-n-fail.md": "9c08e90b8205340166e624ee786555e2a29d58c46765766918b5cce07ea1dd2d",
@@ -28,7 +28,7 @@
     ".harness/hooks/pr_message_nudge.py": "d6b27292389f4b808d31afb01e4ae5f39dee026def7653804d97cb13086f67e5",
     ".harness/lib/isolation.py": "6ae9f9535c06d8e776d5ab83c25f92798cba7917df4e2727bb4fbc59f1d92cf7",
     ".harness/lib/spec_state.py": "eee383691a51cf3e4699bd8897bc9694d362bd9aaffd05932f01b8b0d96eeba7",
-    ".harness/lib/config.py": "0f9387c20e843086ee5e6f6fef460328ba43f52296afff56d5f17fab4d1add11",
+    ".harness/lib/config.py": "34974f8c25c70b097663eb0a3c6febade34f322f3ee9f143ca2583423ac2387d",
     ".harness/lib/synced.py": "17a469fe87b5359542517e161e2add2b6690175d5bee8b351c5d6927036cf762",
     ".harness/lib/telemetry.py": "c9f1b6433a72479b6dc3dad47665d089ce0b58949db41f3ac628b805c8f93496",
     ".harness/lib/hook_shared.py": "90cc1477ae7299595dc8eff1b5f1da0cd09ccb9865e68dd79777853f26704ac5",

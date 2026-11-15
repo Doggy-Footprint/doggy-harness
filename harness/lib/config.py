@@ -28,10 +28,3 @@ class Paths:
 
 def load_paths() -> Paths:
     return Paths(load_config())
-
-
-def load_mask_host_suffixes() -> list[str]:
-    suffixes = load_config().get("mask_host_suffixes")
-    if not isinstance(suffixes, list):
-        return []
-    return [suffix for suffix in suffixes if isinstance(suffix, str)]

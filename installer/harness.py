@@ -1091,6 +1091,7 @@ def migrate_remove_progress(target: Path, dry_run: bool) -> list[str]:
         ".harness/hooks/spec_notice.py; rule markers live in .harness/sessions/rules-<session>.d/",
         "settings and codex hooks drop harness hook groups on events the harness no longer uses",
         "harness-block.md marks principles 2 and 3 as slated for replacement and not binding",
+        "config.default.json drops mask_host_suffixes; the key in .harness/config.json is no longer read",
     ]
     directories = [target / relpath for relpath in progress_record_dirs(target)]
     for relpath in progress_record_dirs(target):
