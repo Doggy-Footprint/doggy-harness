@@ -1606,8 +1606,6 @@ def _group_is_harness(group: dict) -> bool:
 
 
 def prune_empty_parents(target: Path, path: Path) -> None:
-    """Directories at depth one or two (e.g. .harness/hooks, .agents/skills) are
-    install roots and stay even when empty."""
     directory = path.parent
     while len(directory.relative_to(target).parts) > 2:
         try:

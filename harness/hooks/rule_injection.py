@@ -136,7 +136,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    # A traceback or nonzero exit here would block or confuse the agent's tool call.
     try:
         sys.exit(main())
     except Exception:

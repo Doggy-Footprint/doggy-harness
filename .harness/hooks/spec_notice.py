@@ -11,7 +11,6 @@ def main() -> int:
         spec_state.print_notice()
         sys.stdout.flush()
     except Exception:
-        # A broken spec directory or config must not fail session start.
         pass
     return 0
 
