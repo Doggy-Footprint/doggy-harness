@@ -41,6 +41,8 @@ REQUIRED_HEADINGS = (
     "# Quality Requirements",
     "# Verification Obligations",
     "# Assumptions and Defaults",
+    "# Alternatives",
+    "# Open Questions",
     "# Traceability",
     "# Workflow Control",
     "# Version Log",

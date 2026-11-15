@@ -8,7 +8,9 @@ from . import compliance
 
 _WORKFLOW_EVENTS = {"workflow_start", "workflow_phase", "verifier_result", "workflow_end"}
 _NON_HUMAN_PREFIXES = ("<task-notification>", "<local-command-", "Another Claude session sent a message")
-_SLASH_MARKER = "<command-name>/workflow-approach</command-name>"
+# Transcripts from before harness 0.51.0 name the skill workflow-approach.
+_SKILL_NAMES = ("doggy-workflow", "workflow-approach")
+_SLASH_MARKERS = tuple(f"<command-name>/{name}</command-name>" for name in _SKILL_NAMES)
 _WRITE_TOOLS = ("Write", "Edit", "MultiEdit", "NotebookEdit")
 _AGENT_TOOLS = ("Agent", "Task")
 _CLOSING_COMMANDS = ("workflow_marker.py end", "spec_lifecycle.py archive")
@@ -61,7 +63,7 @@ def _optional_str(value) -> str | None:
 
 def _new_request(record: dict, stem: str, index: int, text: str) -> dict:
     session_id = _optional_str(record.get("sessionId"))
-    invocation = "slash" if _SLASH_MARKER in text else None
+    invocation = "slash" if any(marker in text for marker in _SLASH_MARKERS) else None
     return {
         "session_id": stem if session_id is None else session_id,
         "request_index": index,
@@ -137,7 +139,7 @@ def _collect_turn(request: dict, content, found: dict) -> None:
         if name == "Bash":
             _scan_command(tool_input.get("command"), found)
         elif name == "Skill":
-            if tool_input.get("skill") == "workflow-approach" and request["invocation"] is None:
+            if tool_input.get("skill") in _SKILL_NAMES and request["invocation"] is None:
                 request["invocation"] = "skill"
                 request["invoked"] = True
         elif name in _AGENT_TOOLS:

@@ -1,6 +1,6 @@
 ---
 name: mutant-triager
-description: Classifies surviving mutation-tool mutants by reading only each mutant's file and the spec. Use only in the workflow-approach Triage and mutate step.
+description: Classifies surviving mutation-tool mutants by reading only each mutant's file and the spec. Use only in the doggy-workflow Triage and mutate step.
 tools: Read
 disallowedTools: mcp__*
 model: haiku

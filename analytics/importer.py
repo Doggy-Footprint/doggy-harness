@@ -18,7 +18,7 @@ _FIELDS = {
     "survived", "equivalent", "overturned",
     "rule", "tool_name", "match", "match_kind", "excerpt",
     "stage", "reason", "fact_id", "dimension", "fact_questions", "user_decisions",
-    "split", "picks_differ",
+    "split", "picks_differ", "quiz_of", "quiz_questions", "quiz_answered", "quiz_differ",
 }
 
 

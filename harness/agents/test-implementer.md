@@ -1,6 +1,6 @@
 ---
 name: test-implementer
-description: Writes verification for an approved workflow-approach spec without seeing the implementation. Use only in that workflow's Implement + Test step, in parallel with implementer.
+description: Writes verification for an approved doggy-workflow spec without seeing the implementation. Use only in that workflow's Implement + Test step, in parallel with implementer.
 claude.tools: Read, Write, Edit, Grep, Glob, Bash
 claude.disallowedTools: mcp__*
 claude.model: sonnet

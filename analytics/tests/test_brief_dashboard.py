@@ -10,8 +10,9 @@ from analytics.app import create_app
 
 PRICES = ("models:\n  known-model:\n    input: 1\n    output: 1\n    cache_read: 1\n"
           "    cache_write_5m: 1\n    cache_write_1h: 1\n")
+QUIZ_NULLS = {"quiz_of": None, "quiz_questions": None, "quiz_answered": None, "quiz_differ": None}
 BRIEF_ENTRY_KEYS = {"stage", "round", "fact_questions", "user_decisions", "split", "picks_differ",
-                    "ts", "session_id", "tool_use_id", "parsed"}
+                    *QUIZ_NULLS, "ts", "session_id", "tool_use_id", "parsed"}
 REASONS = ("intent_mismatch", "brief_change", "contract_change", "correction")
 AMEND_KEYS = set(REASONS) | {"unspecified"}
 NEW_SUMMARY_KEYS = {"brief_only_runs", "brief_questions"}
@@ -126,10 +127,10 @@ class TestBriefOnlyRunsAndDetail(DashboardCase):
         detail = self.client.get("/api/runs/run-full").json()
         self.assertEqual(detail["briefs"], [
             {"stage": "decision", "round": 2, "fact_questions": 2, "user_decisions": 1,
-             "split": "proposed", "picks_differ": None, "ts": ts(5), "session_id": "claude-9",
+             "split": "proposed", "picks_differ": None, **QUIZ_NULLS, "ts": ts(5), "session_id": "claude-9",
              "tool_use_id": "toolu_b", "parsed": None},
             {"stage": "understanding", "round": 1, "fact_questions": 0, "user_decisions": 0,
-             "split": "none", "picks_differ": 0, "ts": ts(3), "session_id": "claude-1",
+             "split": "none", "picks_differ": 0, **QUIZ_NULLS, "ts": ts(3), "session_id": "claude-1",
              "tool_use_id": "toolu_a", "parsed": None},
         ])
         for entry in detail["briefs"]:
@@ -243,7 +244,7 @@ class TestBriefOnlyRunsAndDetail(DashboardCase):
 class TestImporterFields(DashboardCase):
     FIELDS = {"stage": "decision", "reason": "correction", "fact_id": "67ac615b0c9ad3aa",
               "dimension": "consumers", "fact_questions": 3, "user_decisions": 4, "split": "accepted",
-              "picks_differ": 5}
+              "picks_differ": 5, "quiz_of": "closing", "quiz_questions": 3, "quiz_answered": 2, "quiz_differ": 1}
 
     def stored(self, telemetry_records):
         client, telemetry, _, base = self.make()

@@ -131,3 +131,8 @@ File: b2373e0fdc356594-brief-transcript-parser.md
 Summary: Second half of run 49bafb302bb6593c: rule-based transcript parser and dashboard view for brief decision axes and understanding, located by the brief event pointer; user rejected extra parser fields; not started
 Related Files: analytics/transcripts.py, analytics/app.py, analytics/importer.py, analytics/frontend/src/App.jsx, harness/hooks/telemetry_hook.py
 Related Symbols: index_transcripts, cached_sessions, emit_path_write
+---
+File: 55581096177d4b3b-cross-session-task-transmission.md
+Summary: Replace the failed progress/continue-on approach for carrying task state across sessions; direction to be set from 2026-11 community opinion and research; not started
+Related Files: harness/hooks/progress_hook.py, harness/lib/progress.py, harness/skills/continue-on/SKILL.md
+Related Symbols: progress, continue-on

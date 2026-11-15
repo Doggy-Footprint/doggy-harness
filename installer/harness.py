@@ -1145,6 +1145,76 @@ def migrate_remove_progress(target: Path, dry_run: bool) -> list[str]:
     return planned
 
 
+RENAMED_SKILL_0510 = "workflow-approach"
+
+
+def fact_record_dirs(target: Path) -> list[Path]:
+    docs_root, _ = _target_docs_settings(target)
+    return sorted({target / "agent-docs" / "facts", docs_root / "facts"})
+
+
+def migrate_doggy_workflow(target: Path, dry_run: bool) -> list[str]:
+    conflicts = []
+    empty_dirs = []
+    for directory in fact_record_dirs(target):
+        relpath = os.path.relpath(directory, target)
+        if directory.is_symlink() or directory.is_file():
+            conflicts.append(
+                f"{relpath} is not a directory; facts now live in the single file "
+                f"{os.path.dirname(relpath)}/facts.md. Remove {relpath}, then retry the update"
+            )
+        elif directory.is_dir():
+            entries = sorted(entry.name for entry in directory.iterdir())
+            if entries:
+                conflicts.append(
+                    f"{relpath}/ holds {len(entries)} entr{'y' if len(entries) == 1 else 'ies'} "
+                    f"({', '.join(entries[:3])}{', ...' if len(entries) > 3 else ''}); facts now live in the single "
+                    f"file {os.path.dirname(relpath)}/facts.md. Move each fact the project still needs into it as "
+                    "one bullet (`- <fact> — source: <who>, <YYYY-MM-DD>; re-check: <how>`), delete "
+                    f"{relpath}/, then retry the update"
+                )
+            else:
+                empty_dirs.append(directory)
+    if conflicts:
+        raise MigrationConflict(conflicts)
+    planned = [
+        "rename the workflow-approach skill to doggy-workflow: .agents/skills/workflow-approach/ and "
+        ".harness/skills/workflow-approach/ are deleted (user-modified files are kept and reported) and "
+        ".claude/skills/doggy-workflow is linked",
+        "facts move from one file per fact under agent-docs/facts/ to the single file agent-docs/facts.md, written "
+        "only after the user approves each entry and read whole before a task; the update refuses to run while "
+        "agent-docs/facts/ holds files",
+        "specs drop the `# Retrospective` section: .harness/git/warn_retrospective.py and its pre-commit call are "
+        "removed, and each session ends with a closing report in chat instead",
+        "spec format gains `# Alternatives` and `# Open Questions`, which `spec_lifecycle.py start` now requires; "
+        "specs started earlier archive and abort as before",
+        "the brief explains engineer calls and the final shape without project detail and ends with a quiz; "
+        "quiz questions and answers are not saved",
+        "a task spanning sessions runs as a stepped spec with `# Steps` and `# Session Memory`; a step cut is "
+        "recommended at 15 verification obligations (`step_split_obligations` in .harness/config.json)",
+        "try-n-fail records are searched right before carrying out an approach and at the first failure",
+        "harness-block.md: principle 2 becomes Memory Has a Scope (facts.md, when to search try-n-fail, task state "
+        "kept in the task's spec), and the note that principles 2 and 3 are not binding is removed",
+        "telemetry: brief markers accept the stages quiz and closing and --quiz-questions, --quiz-of, --quiz-answered, "
+        "--quiz-differ, so answers that differ are counted for the approval quiz and the closing quiz; fact_write is recorded for agent-docs/facts.md without a fact id or dimension",
+    ]
+    for directory in empty_dirs:
+        planned.append(f"remove the empty {os.path.relpath(directory, target)}/")
+    link = target / ".claude" / "skills" / RENAMED_SKILL_0510
+    remove_link = link.is_symlink() and os.readlink(link) == f"../../.agents/skills/{RENAMED_SKILL_0510}"
+    if remove_link:
+        planned.append(f"remove the .claude/skills/{RENAMED_SKILL_0510} symlink")
+    elif link.exists() or link.is_symlink():
+        planned.append(f".claude/skills/{RENAMED_SKILL_0510} is not the harness symlink; left in place")
+    if dry_run:
+        return planned
+    for directory in empty_dirs:
+        directory.rmdir()
+    if remove_link:
+        link.unlink()
+    return planned
+
+
 MIGRATIONS = (
     (parse_version("0.3.0"), "archive stale records", migrate_stale_records),
     (parse_version("0.4.0"), "format stale index archives", migrate_stale_index_logs),
@@ -1243,6 +1313,11 @@ MIGRATIONS = (
         parse_version("0.50.0"),
         "remove session progress and continue-on; split rule injection and the spec notice into their own hooks",
         migrate_remove_progress,
+    ),
+    (
+        parse_version("0.51.0"),
+        "rename workflow-approach to doggy-workflow; single facts.md; quiz brief, closing report, and stepped specs",
+        migrate_doggy_workflow,
     ),
 )
 

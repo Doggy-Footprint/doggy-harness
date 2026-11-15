@@ -1,6 +1,6 @@
 ---
 name: test-verifier
-description: Audits workflow-approach evidence against its spec without seeing the implementation. Use only in that workflow's Verify step, after the suite passes.
+description: Audits doggy-workflow evidence against its spec without seeing the implementation. Use only in that workflow's Verify step, after the suite passes.
 claude.tools: Read, Grep, Glob
 claude.disallowedTools: mcp__*
 claude.model: sonnet

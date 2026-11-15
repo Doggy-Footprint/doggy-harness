@@ -10,7 +10,7 @@ from pathlib import Path
 from run_model import skill_body
 
 STOP_RULE = (
-    "The user invoked the workflow-approach skill for the request in ARGUMENTS; follow the skill. "
+    "The user invoked the doggy-workflow skill for the request in ARGUMENTS; follow the skill. "
     "Each of your turns ends at the next point where the skill makes you wait for the user's reply: "
     "output, as your final answer, the complete message you would send to the user at that point. "
     "Your tools are read tools plus Write and Edit for the files the skill tells you to write. "
@@ -164,8 +164,8 @@ def main() -> int:
             "--add-dir", str(scratch), "--output-format", "stream-json", "--verbose",
             "--append-system-prompt", STOP_RULE.format(scratch=scratch)]
     prompt = (
-        "<command-message>workflow-approach</command-message>\n"
-        "<command-name>/workflow-approach</command-name>\n"
+        "<command-message>doggy-workflow</command-message>\n"
+        "<command-name>/doggy-workflow</command-name>\n"
         f"<command-args>{case['task']}</command-args>\n\n"
         f"{skill_body(args.skill)}\n\nARGUMENTS: {case['task']}\n"
     )

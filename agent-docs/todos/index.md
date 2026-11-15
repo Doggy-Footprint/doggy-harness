@@ -5,7 +5,7 @@ Related Symbols: _classify_sessions, _has_harness_evidence, _collect_turn
 ---
 File: 7c41e9b2d05af386-test-implementer-isolation-violation.md
 Summary: Evaluation pending: whether the 0.31.0 dispatch wording stopped main from telling test-implementer to run tests, measured by 0.32.0 dispatch_run_instruction telemetry against the 0.28.0 pilot (3/3)
-Related Files: harness/skills/workflow-approach/SKILL.md, harness/lib/isolation.py, harness/hooks/telemetry_hook.py, analytics/app.py
+Related Files: harness/skills/doggy-workflow/SKILL.md, harness/lib/isolation.py, harness/hooks/telemetry_hook.py, analytics/app.py
 Related Symbols: detect, _dispatch, _harness_hacking, migrate_isolation_telemetry
 ---
 File: d706c17a1d003208-speed-up-test-suite.md
@@ -18,7 +18,7 @@ Summary: Planned future work to combine several people's telemetry and digest it
 Related Files: analytics/importer.py, analytics/app.py, harness/lib/telemetry.py
 Related Symbols: import_pending, emit
 ---
-File: 55581096177d4b3b-cross-session-task-transmission.md
-Summary: Replace the failed progress/continue-on approach for carrying task state across sessions; direction to be set from 2026-11 community opinion and research; not started
-Related Files: harness/hooks/progress_hook.py, harness/lib/progress.py, harness/skills/continue-on/SKILL.md
-Related Symbols: progress, continue-on
+File: c9b24d7c9344d59c-brief-dialogue-eval-facts-md.md
+Summary: evaluation/brief_facts dialogue grading still assumes one file per fact under agent-docs/facts/ found by grep; align seeding and fact criteria with facts.md and re-measure the 0.51.0 skill; not started
+Related Files: evaluation/brief_facts/run_dialogue.py, evaluation/brief_facts/grade_dialogue.py, evaluation/brief_facts/dialogue_grader.md, evaluation/brief_facts/README.md, evaluation/brief_facts/cases/mail-backfill-facts.json, harness/skills/doggy-workflow/SKILL.md
+Related Symbols: copy_written, file_checks, FACT_NAME, FACT_KEYS

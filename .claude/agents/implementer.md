@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: Implements an approved workflow-approach spec without seeing its tests. Use only in that workflow's Implement + Test step, in parallel with test-implementer.
+description: Implements an approved doggy-workflow spec without seeing its tests. Use only in that workflow's Implement + Test step, in parallel with test-implementer.
 tools: Read, Write, Edit, Grep, Glob, Bash
 disallowedTools: mcp__*
 model: sonnet
