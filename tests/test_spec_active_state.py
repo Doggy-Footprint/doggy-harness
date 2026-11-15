@@ -80,7 +80,7 @@ class SpecCase(InstallerTestCase):
         payload = {"hook_event_name": "SessionStart", "session_id": "sess-hook", "source": "startup",
                    "cwd": str(repo)} if payload is None else payload
         return subprocess.run(
-            [sys.executable, str(repo / ".harness" / "hooks" / "progress_hook.py")],
+            [sys.executable, str(repo / ".harness" / "hooks" / "spec_notice.py")],
             input=json.dumps(payload), cwd=repo, capture_output=True, text=True, errors="replace",
             env=self.env(session),
         )
@@ -672,14 +672,15 @@ class TestSession(SpecCase):
         self.assertEqual(self.log_names(), [])
         self.assertIn("seed.py restore", result.stderr)
 
-    def test_draft_and_active_specs_stay_and_print_the_resume_hint(self):
+    def test_draft_and_active_specs_stay_and_the_hint_names_no_continue_on(self):
         for status in ("draft", "active"):
             with self.subTest(status=status):
                 spec = self.raw(f"{ID_A}-{status}.md", status, base="deadbeef")
                 result = self.lc("session")
                 self.assert_ok(result)
                 self.assertTrue(spec.is_file())
-                self.assertIn("/continue-on", result.stderr)
+                self.assertNotIn("continue-on", result.stderr)
+                self.assertNotIn("progress", result.stderr.lower())
                 spec.unlink()
 
 
@@ -1313,19 +1314,19 @@ class TestMigration044(InstallerTestCase):
         spec_bytes, keep_bytes = spec.read_bytes(), keep.read_bytes()
         result = self.update(repo)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(self.announced(result), ["0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1"], result.stdout)
+        self.assertEqual(self.announced(result), ["0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1", "0.50.0"], result.stdout)
         self.assert_plan(result)
         self.assertFalse(active.exists())
         self.assertEqual(spec.read_bytes(), spec_bytes)
         self.assertEqual(keep.read_bytes(), keep_bytes)
-        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.49.1")
+        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.50.0")
 
     def test_dry_run_announces_the_migration_and_deletes_nothing(self):
         repo, spec, keep, active, manifest_path = self.prepare()
         before = self.snapshot(repo)
         result = self.update(repo, dry=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(self.announced(result), ["0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1"], result.stdout)
+        self.assertEqual(self.announced(result), ["0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1", "0.50.0"], result.stdout)
         self.assert_plan(result)
         self.assertTrue(active.is_file())
         self.assertEqual(self.snapshot(repo), before)
@@ -1371,10 +1372,10 @@ class TestMigration044(InstallerTestCase):
         spec_bytes = spec.read_bytes()
         result = self.update(repo)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(self.announced(result), ["0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1"], result.stdout)
+        self.assertEqual(self.announced(result), ["0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1", "0.50.0"], result.stdout)
         self.assertFalse(active.exists())
         self.assertEqual(spec.read_bytes(), spec_bytes)
-        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.49.1")
+        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.50.0")
 
 
 class TestSkillAbortOrder(SpecCase):
@@ -1396,20 +1397,13 @@ class TestSkillAbortOrder(SpecCase):
 
 
 GATED = (
-    "test_hook_owned_progress.TestTextScan.test_removed_wording_does_not_occur_in_harness_or_readme",
-    "test_hook_owned_progress.TestTextScan.test_progress_rule_text_contains_the_required_phrases",
-    "test_hook_owned_progress.TestTextScan.test_readme_mentions_the_placeholder_and_drops_the_one_time_notice_wording",
     "test_rule_injection.TestRuleText.test_rule_files_section_of_the_block_equals_the_expected_text_in_source_and_install",
     "test_rule_injection.TestRuleText.test_synced_comments_rule_names_end_markers_block_hash_and_refresh_command",
     "test_rule_injection.TestRuleText.test_index_rule_names_the_stale_command",
-    "test_rule_injection.TestRuleText.test_progress_rule_describes_the_record_only_kind",
-    "test_rule_injection.TestRuleText.test_continue_on_skill_notes_that_record_only_progress_is_skipped",
-    "test_rule_injection.TestRuleText.test_readme_mentions_records_command_and_record_only_progress",
+    "test_rule_injection.TestRuleText.test_readme_mentions_the_records_command",
     "test_spec_active_state.TestSkillAbortOrder.test_step_one_states_the_abort_order",
 )
 KEPT = (
-    "test_hook_owned_progress.TestTextScan.test_version_is_0_44_0",
-    "test_hook_owned_progress.TestTextScan.test_installed_progress_rule_equals_the_source",
     "test_rule_injection.TestRuleText.test_installed_copies_equal_the_payload_files",
 )
 

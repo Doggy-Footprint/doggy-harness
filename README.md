@@ -34,12 +34,12 @@ python3 installer/harness.py doctor <target>
 | --- | --- |
 | `.harness/` | 버전별 payload, 스크립트, 소유 파일의 SHA manifest |
 | `AGENTS.md`, `CLAUDE.md` | 프로젝트 정의와 관리형 문서 규칙 (`CLAUDE.md`는 `@AGENTS.md` 참조) |
-| `.agents/skills/`, `.claude/skills/` | `workflow-approach`, `continue-on` |
+| `.agents/skills/`, `.claude/skills/` | `workflow-approach` |
 | `.claude/agents/` | `implementer`, `test-implementer`, `test-verifier`, `mutant-triager`, `code-explorer` |
-| `.claude/settings.json` | 세션·서브에이전트·도구 훅. `gh pr create`/`gh pr edit` 뒤에는 PR 설명을 5분 standup 소개 기준으로 쓰라고 상기시킴. 사용자 프롬프트를 마스킹해 progress에 기록하고, 파일을 처음 바꾼 세션에 progress가 없으면 `[harness-requires]` 자리표시자가 든 뼈대를 한 번 만들고(바꾼 파일이 모두 `agent-docs/`의 기록뿐이면 hook이 `### Changes`와 `### User Requests`를 관리하는 `kind: record-only` progress를 만들고, 이후 코드를 바꾸면 전체 progress로 바꾸고)(다른 세션이 실행 중이라 이동이 거부되면 안내만 하고), 알 수 없는 `session:` 값은 현재 세션 id로 채우고, progress 없이 끝나려 하면 한 번 막음. `agent-docs/`의 규칙 디렉터리에 세션 처음으로 Write/Edit/MultiEdit 하면 그 규칙 파일 본문을 컨텍스트로 추가함 |
+| `.claude/settings.json` | 세션·서브에이전트·도구 훅. `gh pr create`/`gh pr edit` 뒤에는 PR 설명을 5분 standup 소개 기준으로 쓰라고 상기시킴. 규칙 주입 훅(`rule_injection.py`)은 `agent-docs/`의 규칙 디렉터리에 세션 처음으로 Write/Edit/MultiEdit 하면 그 규칙 파일 본문을 컨텍스트로 추가하고, spec 알림 훅(`spec_notice.py`)은 세션 시작 때 열린 spec, 복원되지 않은 seed, 남은 서브에이전트 표시를 알림 |
 | `.harness/bin/records.py` | `stale <path>`는 기록을 `stale/`로 옮기고 index 항목을 `stale.md`로 옮김, `synced-refresh <id>`는 동기화 주석의 count·code_hash·version·태그를 갱신 |
-| `.harness/git/` | 커밋 전 문서 규칙 검사(동기화 주석은 태그와 `synced end: <id>` 줄 사이의 코드만 `code_hash`로 검사하며 `agent-docs/` 안의 태그는 세지 않음, Claude Code 세션이 프로젝트를 바꿨다면 그 세션의 progress가 이 커밋에 스테이징되어 있어야 함, progress의 마스킹되지 않은 키·이메일·IP·내부 호스트명 차단 포함), 커밋 메시지의 `Request:`·`Intent:` 줄 경고, merge로 들어온 progress를 `progress-logs/`로 이동 |
-| `agent-docs/` | try-n-fail 기록, 세션 progress, todo, spec, 실행 기록, 사용자가 알려 준 프로젝트 사실(`facts/`) |
+| `.harness/git/` | 커밋 전 문서 규칙 검사(동기화 주석은 태그와 `synced end: <id>` 줄 사이의 코드만 `code_hash`로 검사하며 `agent-docs/` 안의 태그는 세지 않음), 커밋 메시지의 `Request:`·`Intent:` 줄 경고 |
+| `agent-docs/` | try-n-fail 기록, todo, spec, 실행 기록, 사용자가 알려 준 프로젝트 사실(`facts/`) |
 | `.github/workflows/harness-comment-warning.yml` | 새 주석이 있는 PR은 `comments-approved` 라벨이 있어야 통과 (선택) |
 
 기존 설정과의 관계:
@@ -58,20 +58,19 @@ python3 installer/harness.py doctor <target>
    - 브리프는 질문(되돌리기 어려운 결정), 사용자가 거부할 수 있는 기본값, 새 개념 설명으로 나뉘며 파일로 남기지 않습니다.
 2. **구현 + 테스트**: `implementer`와 `test-implementer`가 서로의 결과물을 보지 않고 병렬로 작업합니다.
 3. **검증**: `test-verifier`가 증거를 감사하고, 메인 에이전트가 결함을 주입해 테스트가 잡는지 확인합니다. 검증 호출은 실행당 최대 2회입니다.
-4. **보관**: 끝난 spec은 `agent-docs/spec-logs/`로 옮기고, 진행 중인 spec은 남깁니다. 남은 작업은 세션 progress의 `## Next Session`에 적고, 다음 세션은 `/continue-on`으로 그 부분만 읽고 이어갑니다.
+4. **보관**: 끝난 spec은 `agent-docs/spec-logs/`로 옮기고, 진행 중인 spec은 남깁니다.
 5. **회고**: 세션을 마칠 때마다 spec의 `# Retrospective`에 넣을 항목(다음 세션이 다시 알아낼 수 없는 관찰, 근거, 재확인 방법) 초안을 사용자에게 보여 주고, 확인받은 뒤 기록합니다.
 
 텔레메트리는 `~/.harness/telemetry/`에 JSONL로 기록됩니다.
 
 ## 문서 관리
 
-에이전트는 `AGENTS.md`의 관리 블록에 따라 문서를 씁니다. 관리 블록은 규칙 본문이 아니라 `.harness/instructions/harness-block.md`를 가져오는 import 한 줄(`@.harness/instructions/harness-block.md`)이며, 버전이 바뀌어도 `AGENTS.md`는 달라지지 않습니다. 항상 읽는 규칙은 [`harness-block.md`](harness/instructions/harness-block.md)에 있습니다. hook이 위반을 잡는 progress, try-n-fail, todo, index/stale, 동기화 주석 규칙은 같은 디렉터리의 별도 파일에 있어 해당 작업 전에 읽고, 위반하면 hook 메시지가 그 파일을 알려 줍니다.
+에이전트는 `AGENTS.md`의 관리 블록에 따라 문서를 씁니다. 관리 블록은 규칙 본문이 아니라 `.harness/instructions/harness-block.md`를 가져오는 import 한 줄(`@.harness/instructions/harness-block.md`)이며, 버전이 바뀌어도 `AGENTS.md`는 달라지지 않습니다. 항상 읽는 규칙은 [`harness-block.md`](harness/instructions/harness-block.md)에 있습니다. hook이 위반을 잡는 try-n-fail, todo, index/stale, 동기화 주석 규칙은 같은 디렉터리의 별도 파일에 있어 해당 작업 전에 읽고, 위반하면 hook 메시지가 그 파일을 알려 줍니다.
 
 | 문서 | 위치 | 언제 쓰나 |
 | --- | --- | --- |
 | 주석·docstring | 코드 | 코드로 알 수 없는 설계 제약, 외부 시스템, 보안 불변식, 특이한 구현의 이유만 |
 | try-n-fail | `agent-docs/try-n-fail/` | 실패를 알아내는 데 실제 구현·실행·조사가 든 시도, 또는 사용자가 거절한 구체적 제안을 다음 작업이 반복할 수 있을 때. 초안 확인 후 작성 |
-| progress | `agent-docs/progress/` | 파일을 바꾼 세션마다 하나. 다음 세션용 `## Next Session`(항목마다 `  - files:` 줄. 항목을 기록한 commit 이후 나열한 파일이 바뀌면 stale)과 기록용 `## Record`. 새 세션의 progress가 생기면 이전 것은 `agent-docs/progress-logs/`로 이동 |
 | todo | `agent-docs/todos/` | 세션에 묶이지 않은 작업 항목. `#` 제목과 `## Next Step` 필수. 0.33.0 이전 handoff 기록은 갱신 때 동의하면 여기로 이동 |
 | 동기화 주석 | `agent-docs/synced-comments/` | 같은 주석을 여러 곳에 유지할 때. 코드에 `synced id`와 버전을 태그하고 블록 끝에 `synced end: <id>`를 둠 |
 
@@ -110,7 +109,7 @@ python3 installer/harness.py update . --no-commit
 python3 tests/run_parallel.py
 ```
 
-- `tests/run_parallel.py`는 테스트를 클래스 단위(최대 8개씩)로 나눠 CPU 코어 수만큼 병렬로 실행합니다. `-j N`으로 동시 실행 수를 정하고, `python3 tests/run_parallel.py test_progress`처럼 모듈을 지정할 수 있습니다. 직렬 실행(`python3 -m unittest discover -s tests`)도 그대로 동작합니다.
+- `tests/run_parallel.py`는 테스트를 클래스 단위(최대 8개씩)로 나눠 CPU 코어 수만큼 병렬로 실행합니다. `-j N`으로 동시 실행 수를 정하고, `python3 tests/run_parallel.py <모듈>`처럼 모듈을 지정할 수 있습니다. 직렬 실행(`python3 -m unittest discover -s tests`)도 그대로 동작합니다.
 - 버전을 올리면 [`installer/harness.py`](installer/harness.py)에 버전별 migration을 추가합니다.
 - skill, rule, README 문구를 바꿀 때는 `HARNESS_TEXT_TESTS=1 python3 -m unittest discover -s tests`로 실행하세요. 문구 검사는 기본으로 건너뜁니다.
 - 에이전트는 `harness/agents/`, 훅은 `harness/hooks/hooks.spec.json`에서 관리하며 [`installer/generate.py`](installer/generate.py)가 생성합니다.

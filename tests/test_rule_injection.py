@@ -1,26 +1,28 @@
 import json
 import os
-import re
+import shutil
+import stat
 import tempfile
 import unittest
 from pathlib import Path
 
+from hook_case import HookCase
 from test_installer import REPO_ROOT, run_git, run_installer
 from test_lazy_rules import split_sections
-from test_progress import ProgressCase
 from text_checks import text_test
 
 INSTRUCTIONS = ".harness/instructions"
-RULE_FILES = ("progress.md", "index-and-staleness.md", "try-n-fail.md", "todos.md", "synced-comments.md")
+RULE_FILES = ("index-and-staleness.md", "try-n-fail.md", "todos.md", "synced-comments.md")
+HOOK = "rule_injection.py"
 HEX_RECORD = "0123456789abcdef-x.md"
 SID = "sessinj"
+TODOS_RULES = ["todos.md", "index-and-staleness.md"]
 S10 = """## Rule Files
 
 These rules live in separate files under `.harness/instructions/`. A hook adds a rule's text to the session at its first Write or Edit in the rule's directory; read the file yourself before other work it covers. Hook and pre-commit messages name the file of a rule they find violated.
 
 | file | read before |
 | --- | --- |
-| `progress.md` | committing in a session that changed the project, continuing earlier work, or opening a PR |
 | `index-and-staleness.md` | adding, renaming, or marking stale a record in `agent-docs/` |
 | `try-n-fail.md` | proposing a try-n-fail record |
 | `todos.md` | writing a todo |
@@ -28,22 +30,25 @@ These rules live in separate files under `.harness/instructions/`. A hook adds a
 """
 
 
-
 def header(name, directory):
     return f"harness: rule text of {INSTRUCTIONS}/{name} for writing in {directory}/:"
 
 
-class InjectionCase(ProgressCase):
+class InjectionCase(HookCase):
     def ready(self, docs_root=None):
         repo = self.new_repo()
         if docs_root:
-            (repo / ".harness" / "config.json").write_text(json.dumps({"docs_root": docs_root}))
-        self.own_marker(repo)
-        self.assertEqual(self.start(repo, sid=SID).returncode, 0)
+            config_path = repo / ".harness" / "config.json"
+            config = json.loads(config_path.read_text()) if config_path.is_file() else {}
+            config["docs_root"] = docs_root
+            config_path.write_text(json.dumps(config))
         return repo
 
-    def own_marker(self, repo):
-        self.add_marker(repo, os.getpid())
+    def indexed_dir(self, repo, rel):
+        directory = repo / rel
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "index.md").write_text("")
+        return directory
 
     def rule_text(self, repo, name, directory):
         return header(name, directory) + "\n\n" + (repo / INSTRUCTIONS / name).read_text()
@@ -51,12 +56,16 @@ class InjectionCase(ProgressCase):
     def expected(self, repo, names, directory):
         return "\n\n".join(self.rule_text(repo, name, directory) for name in names)
 
-    def pre(self, repo, rel, sid=SID, tool="Write", absolute=True, **kw):
+    def payload(self, repo, rel, sid=SID, tool="Write", absolute=True):
         target = str(repo / rel) if absolute else rel
-        payload = {"hook_event_name": "PreToolUse", "tool_name": tool, "tool_input": {"file_path": target}}
+        payload = {"hook_event_name": "PreToolUse", "tool_name": tool, "tool_input": {"file_path": target},
+                   "cwd": str(repo)}
         if sid is not None:
             payload["session_id"] = sid
-        return self.hook(repo, payload, **kw)
+        return payload
+
+    def pre(self, repo, rel, sid=SID, tool="Write", absolute=True, env=None):
+        return self.run_script(repo, HOOK, self.payload(repo, rel, sid, tool, absolute), env=env)
 
     def assert_injected(self, result, text):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -68,170 +77,280 @@ class InjectionCase(ProgressCase):
         self.assertEqual((result.returncode, result.stdout), (0, ""), result.stderr)
         self.assertNotIn("Traceback", result.stderr)
 
-    def markers(self, repo, sid=SID):
-        directory = self.sessions_dir(repo) / f"progress-{sid}.d"
-        return sorted(p.name for p in directory.glob("rule-*")) if directory.is_dir() else []
+    def marker_dirs(self, repo):
+        sessions = self.sessions_dir(repo)
+        return sorted(sessions.glob("rules-*.d")) if sessions.is_dir() else []
+
+    def assert_no_marker(self, repo):
+        self.assertEqual([p for d in self.marker_dirs(repo) for p in d.iterdir()], [])
 
 
-class TestDirectoryMapping(InjectionCase):
-    def notes_repo(self):
+class TestDirectoryClasses(InjectionCase):
+    def test_vo1_p1_try_n_fail_injects_try_n_fail_then_index_rule(self):
         repo = self.ready()
-        (repo / "agent-docs" / "notes").mkdir(parents=True, exist_ok=True)
-        (repo / "agent-docs" / "notes" / "index.md").write_text("")
-        return repo
+        result = self.pre(repo, f"agent-docs/try-n-fail/{HEX_RECORD}")
+        self.assert_injected(result, self.expected(repo, ["try-n-fail.md", "index-and-staleness.md"],
+                                                   "agent-docs/try-n-fail"))
 
-    def test_each_rule_directory_returns_its_rule_files_in_order_as_exact_json(self):
+    def test_vo1_p2_todos_injects_todos_then_index_rule(self):
+        repo = self.ready()
+        result = self.pre(repo, f"agent-docs/todos/{HEX_RECORD}")
+        self.assert_injected(result, self.expected(repo, TODOS_RULES, "agent-docs/todos"))
+
+    def test_vo1_p3_synced_comments_injects_only_its_rule(self):
+        repo = self.ready()
+        result = self.pre(repo, "agent-docs/synced-comments/aabbccddeeff.md")
+        self.assert_injected(result, self.expected(repo, ["synced-comments.md"], "agent-docs/synced-comments"))
+
+    def test_vo1_p4_specs_prints_nothing_even_with_an_index(self):
+        repo = self.ready()
+        self.indexed_dir(repo, "agent-docs/specs")
+        self.assert_silent(self.pre(repo, f"agent-docs/specs/{HEX_RECORD}"))
+        self.assert_no_marker(repo)
+
+    def test_vo1_p5_spec_logs_prints_nothing_even_with_an_index(self):
+        repo = self.ready()
+        self.indexed_dir(repo, "agent-docs/spec-logs")
+        self.assert_silent(self.pre(repo, f"agent-docs/spec-logs/{HEX_RECORD}"))
+        self.assert_no_marker(repo)
+
+    def test_vo1_p6_directory_without_index_prints_nothing(self):
+        repo = self.ready()
+        for directory in ("facts", "plain"):
+            with self.subTest(directory=directory):
+                self.assertFalse((repo / "agent-docs" / directory / "index.md").exists())
+                self.assert_silent(self.pre(repo, f"agent-docs/{directory}/{HEX_RECORD}"))
+        self.assert_no_marker(repo)
+
+    def test_vo1_p7_other_directory_with_index_injects_index_rule(self):
+        repo = self.ready()
+        self.indexed_dir(repo, "agent-docs/notes")
+        result = self.pre(repo, f"agent-docs/notes/{HEX_RECORD}")
+        self.assert_injected(result, self.expected(repo, ["index-and-staleness.md"], "agent-docs/notes"))
+
+    def test_vo1_p8_file_directly_in_docs_root_prints_nothing(self):
+        repo = self.ready()
+        self.assert_silent(self.pre(repo, "agent-docs/notes.md"))
+        self.assert_no_marker(repo)
+
+    def test_vo1_p9_paths_outside_docs_root_print_nothing(self):
+        repo = self.ready()
+        for rel in ("src/a.py", "README.md", "agent-docs-other/todos/x.md", f"docs/todos/{HEX_RECORD}"):
+            with self.subTest(path=rel):
+                self.assert_silent(self.pre(repo, rel))
+        self.assert_no_marker(repo)
+
+    def test_vo1_p10_custom_docs_root_maps_under_that_root_and_not_under_agent_docs(self):
+        repo = self.ready(docs_root="docs/agent")
+        self.indexed_dir(repo, "docs/agent/todos")
+        self.indexed_dir(repo, "docs/agent/notes")
+        self.indexed_dir(repo, "docs/agent/specs")
+        with self.subTest(case="default layout is outside the configured root"):
+            self.assert_silent(self.pre(repo, f"agent-docs/todos/{HEX_RECORD}", sid="sessdefault"))
+        with self.subTest(case="todos under the configured root"):
+            result = self.pre(repo, f"docs/agent/todos/{HEX_RECORD}")
+            self.assert_injected(result, self.expected(repo, TODOS_RULES, "docs/agent/todos"))
+        with self.subTest(case="other indexed directory under the configured root"):
+            result = self.pre(repo, f"docs/agent/notes/{HEX_RECORD}", sid="sessnotes")
+            self.assert_injected(result, self.expected(repo, ["index-and-staleness.md"], "docs/agent/notes"))
+        with self.subTest(case="specs under the configured root"):
+            self.assert_silent(self.pre(repo, f"docs/agent/specs/{HEX_RECORD}", sid="sessspecs"))
+
+    def test_vo1_p11_relative_path_gives_the_same_result_as_absolute(self):
+        repo = self.ready()
+        relative = self.pre(repo, f"agent-docs/todos/{HEX_RECORD}", sid="sessrel", absolute=False)
+        absolute = self.pre(repo, f"agent-docs/todos/{HEX_RECORD}", sid="sessabs")
+        expected = self.expected(repo, TODOS_RULES, "agent-docs/todos")
+        self.assert_injected(relative, expected)
+        self.assert_injected(absolute, expected)
+
+    def test_vo1_p11_relative_path_from_a_subdirectory_cwd_resolves_against_the_repo_root(self):
+        repo = self.ready()
+        payload = self.payload(repo, f"agent-docs/todos/{HEX_RECORD}", absolute=False)
+        payload["cwd"] = str(repo / "src")
+        result = self.run_script(repo, HOOK, payload, cwd=repo / "src")
+        self.assert_injected(result, self.expected(repo, TODOS_RULES, "agent-docs/todos"))
+
+    def test_vo1_p12_named_directories_without_index_still_inject_their_rules(self):
+        repo = self.ready()
         table = (
-            ("progress", ["progress.md"]),
-            ("progress-logs", ["progress.md"]),
+            ("todos", TODOS_RULES),
             ("try-n-fail", ["try-n-fail.md", "index-and-staleness.md"]),
-            ("todos", ["todos.md", "index-and-staleness.md"]),
             ("synced-comments", ["synced-comments.md"]),
-            ("notes", ["index-and-staleness.md"]),
         )
-        repo = self.notes_repo()
         for number, (directory, names) in enumerate(table):
             with self.subTest(directory=directory):
-                sid = f"sessmap{number}"
-                self.start(repo, sid=sid)
-                result = self.pre(repo, f"agent-docs/{directory}/{HEX_RECORD}", sid=sid)
+                index = repo / "agent-docs" / directory / "index.md"
+                if index.exists():
+                    index.unlink()
+                self.assertFalse(index.exists())
+                result = self.pre(repo, f"agent-docs/{directory}/{HEX_RECORD}", sid=f"sessnoindex{number}")
                 self.assert_injected(result, self.expected(repo, names, f"agent-docs/{directory}"))
-                self.assertEqual(self.markers(repo, sid), sorted(f"rule-{Path(n).stem}" for n in names))
 
-    def test_edit_and_multiedit_inject_like_write(self):
+    def test_vo1_p13_nested_file_maps_as_its_first_level_directory(self):
+        repo = self.ready()
+        result = self.pre(repo, f"agent-docs/todos/stale/{HEX_RECORD}")
+        self.assert_injected(result, self.expected(repo, TODOS_RULES, "agent-docs/todos"))
+
+    def test_vo1_edit_and_multiedit_inject_like_write(self):
         repo = self.ready()
         for number, tool in enumerate(("Edit", "MultiEdit")):
             with self.subTest(tool=tool):
-                sid = f"sesstool{number}"
-                self.start(repo, sid=sid)
-                result = self.pre(repo, f"agent-docs/synced-comments/{HEX_RECORD}", sid=sid, tool=tool)
+                result = self.pre(repo, "agent-docs/synced-comments/aabbccddeeff.md", sid=f"sesstool{number}", tool=tool)
                 self.assert_injected(result, self.expected(repo, ["synced-comments.md"], "agent-docs/synced-comments"))
 
-    def test_relative_and_dotdot_targets_resolve_before_matching(self):
+    def test_vo1_read_tool_does_not_inject(self):
         repo = self.ready()
-        for number, target in enumerate((f"agent-docs/todos/{HEX_RECORD}", f"agent-docs/try-n-fail/../todos/{HEX_RECORD}")):
-            with self.subTest(target=target):
-                sid = f"sessrel{number}"
-                self.start(repo, sid=sid)
-                result = self.pre(repo, target, sid=sid, absolute=False)
-                self.assert_injected(result, self.expected(repo, ["todos.md", "index-and-staleness.md"], "agent-docs/todos"))
-
-    def test_pre_tool_use_is_registered_for_write_edit_and_multiedit(self):
-        repo = self.make_repo()
-        self.assertEqual(run_installer("install", str(repo), "--no-ci").returncode, 0)
-        groups = json.loads((repo / ".claude" / "settings.json").read_text())["hooks"]["PreToolUse"]
-        for tool in ("Write", "Edit", "MultiEdit"):
-            with self.subTest(tool=tool):
-                matched = [g for g in groups if re.fullmatch(g.get("matcher", ".*"), tool)
-                           and any("progress_hook.py" in h["command"] for h in g["hooks"])]
-                self.assertTrue(matched)
+        self.assert_silent(self.pre(repo, f"agent-docs/todos/{HEX_RECORD}", tool="Read"))
+        self.assert_no_marker(repo)
 
 
-class TestOncePerSession(InjectionCase):
-    def test_second_write_into_the_same_directory_prints_nothing(self):
+class TestSessionStates(InjectionCase):
+    def test_vo2_t1_first_write_injects_and_records_the_session(self):
         repo = self.ready()
-        first = self.pre(repo, f"agent-docs/todos/{HEX_RECORD}")
-        self.assertTrue(first.stdout)
+        self.assertEqual(self.marker_dirs(repo), [])
+        result = self.pre(repo, f"agent-docs/todos/{HEX_RECORD}")
+        self.assert_injected(result, self.expected(repo, TODOS_RULES, "agent-docs/todos"))
+        dirs = self.marker_dirs(repo)
+        self.assertEqual(len(dirs), 1, dirs)
+        self.assertIn(SID, dirs[0].name)
+        self.assertTrue(any(dirs[0].iterdir()))
+
+    def test_vo2_t2_repeat_write_in_the_same_directory_prints_nothing(self):
+        repo = self.ready()
+        self.assertTrue(self.pre(repo, f"agent-docs/todos/{HEX_RECORD}").stdout)
         self.assert_silent(self.pre(repo, f"agent-docs/todos/{HEX_RECORD}"))
         self.assert_silent(self.pre(repo, "agent-docs/todos/index.md", tool="Edit"))
 
-    def test_later_first_write_into_try_n_fail_injects_only_its_own_rule_file(self):
+    def test_vo2_t3_partial_state_injects_only_the_rule_not_yet_injected(self):
         repo = self.ready()
-        self.pre(repo, f"agent-docs/todos/{HEX_RECORD}")
+        self.indexed_dir(repo, "agent-docs/notes")
+        self.assertTrue(self.pre(repo, f"agent-docs/todos/{HEX_RECORD}").stdout)
         result = self.pre(repo, f"agent-docs/try-n-fail/{HEX_RECORD}")
         self.assert_injected(result, self.rule_text(repo, "try-n-fail.md", "agent-docs/try-n-fail"))
-        self.assertEqual(self.markers(repo), ["rule-index-and-staleness", "rule-todos", "rule-try-n-fail"])
+        self.assert_silent(self.pre(repo, f"agent-docs/notes/{HEX_RECORD}"))
 
-    def test_progress_logs_after_progress_injects_nothing_because_progress_md_is_already_in(self):
+    def test_vo2_t4_another_session_gets_the_sections_again(self):
         repo = self.ready()
-        self.assertTrue(self.pre(repo, f"agent-docs/progress/{HEX_RECORD}").stdout)
-        self.assert_silent(self.pre(repo, f"agent-docs/progress-logs/{HEX_RECORD}"))
+        expected = self.expected(repo, TODOS_RULES, "agent-docs/todos")
+        self.assert_injected(self.pre(repo, f"agent-docs/todos/{HEX_RECORD}"), expected)
+        self.assert_injected(self.pre(repo, f"agent-docs/todos/{HEX_RECORD}", sid="sessother"), expected)
+        self.assert_silent(self.pre(repo, f"agent-docs/todos/{HEX_RECORD}"))
 
-    def test_another_session_gets_the_rule_text_again(self):
+
+class TestMalformedInputs(InjectionCase):
+    def raw(self, repo, text):
+        return self.run_script(repo, HOOK, raw=text)
+
+    def test_vo3_e1_empty_stdin_prints_nothing(self):
         repo = self.ready()
-        self.pre(repo, f"agent-docs/todos/{HEX_RECORD}")
-        self.start(repo, sid="sessother")
-        result = self.pre(repo, f"agent-docs/todos/{HEX_RECORD}", sid="sessother")
-        self.assert_injected(result, self.expected(repo, ["todos.md", "index-and-staleness.md"], "agent-docs/todos"))
+        self.assert_silent(self.raw(repo, ""))
+        self.assert_no_marker(repo)
 
-
-class TestNoInjection(InjectionCase):
-    def test_paths_outside_rule_directories_print_nothing(self):
+    def test_vo3_e2_invalid_json_prints_nothing(self):
         repo = self.ready()
-        for rel in ("src/a.py", "agent-docs/sync-state.json", "README.md"):
-            with self.subTest(path=rel):
-                self.assert_silent(self.pre(repo, rel))
-        self.assertEqual(self.markers(repo), [])
+        self.assert_silent(self.raw(repo, '{"session_id": "sessinj", "tool_input": '))
+        self.assert_no_marker(repo)
 
-    def test_specs_and_spec_logs_directories_print_nothing(self):
+    def test_vo3_e3_json_array_prints_nothing(self):
         repo = self.ready()
-        for directory in ("specs", "spec-logs"):
-            with self.subTest(directory=directory):
-                (repo / "agent-docs" / directory / "index.md").parent.mkdir(parents=True, exist_ok=True)
-                (repo / "agent-docs" / directory / "index.md").write_text("")
-                self.assert_silent(self.pre(repo, f"agent-docs/{directory}/{HEX_RECORD}"))
-        self.assertEqual(self.markers(repo), [])
+        self.assert_silent(self.raw(repo, json.dumps([self.payload(repo, f"agent-docs/todos/{HEX_RECORD}")])))
+        self.assert_no_marker(repo)
 
-    def test_directory_without_an_index_under_docs_root_prints_nothing(self):
-        repo = self.ready()
-        self.assert_silent(self.pre(repo, f"agent-docs/plain/{HEX_RECORD}"))
-
-    def test_missing_session_id_prints_nothing(self):
+    def test_vo3_e4_missing_session_id_prints_nothing(self):
         repo = self.ready()
         self.assert_silent(self.pre(repo, f"agent-docs/todos/{HEX_RECORD}", sid=None))
-        self.assert_silent(self.pre(repo, f"agent-docs/todos/{HEX_RECORD}", sid=""))
+        self.assert_no_marker(repo)
 
-    def test_other_tools_do_not_trigger_injection(self):
+    def test_vo3_e5_missing_tool_input_or_file_path_prints_nothing(self):
         repo = self.ready()
-        self.assert_silent(self.pre(repo, f"agent-docs/todos/{HEX_RECORD}", tool="Read"))
-        self.assertEqual(self.markers(repo), [])
+        base = self.payload(repo, f"agent-docs/todos/{HEX_RECORD}")
+        without_input = {k: v for k, v in base.items() if k != "tool_input"}
+        without_path = dict(base, tool_input={"content": "x"})
+        for label, payload in (("no tool_input", without_input), ("no file_path", without_path)):
+            with self.subTest(case=label):
+                self.assert_silent(self.run_script(repo, HOOK, payload))
+        self.assert_no_marker(repo)
 
-    def test_unreadable_rule_file_is_skipped_without_marker_and_injected_on_the_next_write(self):
+    def test_vo3_e6_directory_outside_a_git_work_tree_prints_nothing(self):
+        repo = self.ready()
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        plain = Path(tmp.name) / "plain"
+        shutil.copytree(repo, plain, symlinks=True)
+        shutil.rmtree(plain / ".git")
+        result = self.pre(plain, f"agent-docs/todos/{HEX_RECORD}")
+        self.assert_silent(result)
+        self.assert_no_marker(plain)
+
+    def test_vo3_e6_git_missing_from_path_prints_nothing(self):
+        repo = self.ready()
+        env = self.env(PATH=self.empty_path_dir())
+        self.assert_silent(self.pre(repo, f"agent-docs/todos/{HEX_RECORD}", env=env))
+
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "permission bits do not bind root")
+    def test_vo3_e7_unwritable_marker_directory_still_prints_the_text_on_every_call(self):
+        repo = self.ready()
+        sessions = self.sessions_dir(repo)
+        sessions.mkdir(parents=True, exist_ok=True)
+        for leftover in sessions.glob("rules-*.d"):
+            shutil.rmtree(leftover)
+        self.addCleanup(os.chmod, sessions, 0o755)
+        os.chmod(sessions, stat.S_IRUSR | stat.S_IXUSR)
+        expected = self.expected(repo, TODOS_RULES, "agent-docs/todos")
+        for call in ("first", "second"):
+            with self.subTest(call=call):
+                self.assert_injected(self.pre(repo, f"agent-docs/todos/{HEX_RECORD}"), expected)
+
+    def test_vo3_e8_missing_rule_file_is_skipped_and_the_others_print(self):
         repo = self.ready()
         rule = repo / INSTRUCTIONS / "todos.md"
         original = rule.read_text()
         rule.unlink()
         first = self.pre(repo, f"agent-docs/todos/{HEX_RECORD}")
         self.assert_injected(first, self.rule_text(repo, "index-and-staleness.md", "agent-docs/todos"))
-        self.assertEqual(self.markers(repo), ["rule-index-and-staleness"])
         rule.write_text(original)
         second = self.pre(repo, f"agent-docs/todos/{HEX_RECORD}")
         self.assert_injected(second, self.rule_text(repo, "todos.md", "agent-docs/todos"))
 
-    def test_every_rule_file_unreadable_prints_nothing_and_exits_zero(self):
+    def test_vo3_e9_unreadable_rule_file_is_skipped_and_injected_after_restore(self):
+        def directory_in_place(rule):
+            rule.unlink()
+            rule.mkdir()
+
+            def restore(original):
+                rule.rmdir()
+                rule.write_text(original)
+            return restore
+
+        def mode_000(rule):
+            rule.chmod(0)
+
+            def restore(original):
+                rule.chmod(0o644)
+            return restore
+
+        variants = [("directory in place", directory_in_place)]
+        if not (hasattr(os, "geteuid") and os.geteuid() == 0):
+            variants.append(("mode 000", mode_000))
+        for label, make_unreadable in variants:
+            with self.subTest(variant=label):
+                repo = self.ready()
+                rule = repo / INSTRUCTIONS / "todos.md"
+                original = rule.read_text()
+                restore = make_unreadable(rule)
+                self.addCleanup(lambda r=rule: r.chmod(0o644) if r.is_file() else None)
+                first = self.pre(repo, f"agent-docs/todos/{HEX_RECORD}")
+                self.assert_injected(first, self.rule_text(repo, "index-and-staleness.md", "agent-docs/todos"))
+                restore(original)
+                second = self.pre(repo, f"agent-docs/todos/{HEX_RECORD}")
+                self.assert_injected(second, self.rule_text(repo, "todos.md", "agent-docs/todos"))
+
+    def test_vo3_e8_every_mapped_rule_file_missing_prints_nothing(self):
         repo = self.ready()
         (repo / INSTRUCTIONS / "todos.md").unlink()
         (repo / INSTRUCTIONS / "index-and-staleness.md").unlink()
         self.assert_silent(self.pre(repo, f"agent-docs/todos/{HEX_RECORD}"))
-        self.assertEqual(self.markers(repo), [])
-
-    def test_git_missing_prints_no_injection_and_never_crashes(self):
-        repo = self.ready()
-        env = self.env(PATH=self.empty_path_dir())
-        result = self.pre(repo, f"agent-docs/todos/{HEX_RECORD}", env=env)
-        self.assert_silent(result)
-
-
-class TestConfiguredDocsRootInjection(InjectionCase):
-    def test_rule_directories_under_the_configured_docs_root_inject_with_that_directory_name(self):
-        repo = self.ready(docs_root="docs/agent")
-        result = self.pre(repo, f"docs/agent/todos/{HEX_RECORD}")
-        self.assert_injected(result, self.expected(repo, ["todos.md", "index-and-staleness.md"], "docs/agent/todos"))
-
-    def test_default_layout_directories_print_nothing_when_docs_root_is_configured(self):
-        repo = self.ready(docs_root="docs/agent")
-        self.assert_silent(self.pre(repo, f"agent-docs/todos/{HEX_RECORD}"))
-
-    def test_other_indexed_directory_and_specs_follow_the_configured_root(self):
-        repo = self.ready(docs_root="docs/agent")
-        (repo / "docs" / "agent" / "notes").mkdir(parents=True)
-        (repo / "docs" / "agent" / "notes" / "index.md").write_text("")
-        (repo / "docs" / "agent" / "specs").mkdir(parents=True)
-        (repo / "docs" / "agent" / "specs" / "index.md").write_text("")
-        self.start(repo, sid="sessnotes")
-        injected = self.pre(repo, f"docs/agent/notes/{HEX_RECORD}", sid="sessnotes")
-        self.assert_injected(injected, self.expected(repo, ["index-and-staleness.md"], "docs/agent/notes"))
-        self.assert_silent(self.pre(repo, f"docs/agent/specs/{HEX_RECORD}"))
 
 
 class TestRuleText(unittest.TestCase):
@@ -269,24 +388,13 @@ class TestRuleText(unittest.TestCase):
         self.assertIn("records.py stale", self.payload("instructions", "index-and-staleness.md"))
 
     @text_test
-    def test_progress_rule_describes_the_record_only_kind(self):
-        self.assertIn("record-only", self.payload("instructions", "progress.md"))
-
-    @text_test
-    def test_continue_on_skill_notes_that_record_only_progress_is_skipped(self):
-        text = self.payload("skills", "continue-on", "SKILL.md")
-        self.assertIn("record-only", text)
-        self.assertIn("progress-logs", text)
-
-    @text_test
-    def test_readme_mentions_records_command_and_record_only_progress(self):
-        text = (REPO_ROOT / "README.md").read_text()
-        self.assertIn("records.py", text)
-        self.assertIn("record-only", text)
+    def test_readme_mentions_the_records_command(self):
+        self.assertIn("records.py", (REPO_ROOT / "README.md").read_text())
 
     def test_installed_copies_equal_the_payload_files(self):
         pairs = [(Path(INSTRUCTIONS) / name, Path("harness") / "instructions" / name) for name in (*RULE_FILES, "harness-block.md")]
         pairs.append((Path(".harness") / "bin" / "records.py", Path("harness") / "bin" / "records.py"))
+        pairs.append((Path(".harness") / "hooks" / HOOK, Path("harness") / "hooks" / HOOK))
         for installed, source in pairs:
             with self.subTest(file=installed.name):
                 self.assertEqual((self.repo / installed).read_bytes(), (REPO_ROOT / source).read_bytes())

@@ -70,7 +70,7 @@ def label(ids):
 
 def main():
     parser = argparse.ArgumentParser(description="Run the test suite in parallel worker processes.")
-    parser.add_argument("modules", nargs="*", help="test module names to run, e.g. test_progress (default: all)")
+    parser.add_argument("modules", nargs="*", help="test module names to run, e.g. test_installer (default: all)")
     parser.add_argument("-j", "--jobs", type=int, default=os.cpu_count() or 1)
     parser.add_argument("--chunk", type=int, default=8, help="maximum tests from one class per worker process")
     args = parser.parse_args()

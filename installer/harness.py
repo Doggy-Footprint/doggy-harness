@@ -19,7 +19,6 @@ import verification_tools  # noqa: E402
 
 SOURCE_HARNESS = Path(__file__).resolve().parents[1] / "harness"
 sys.path.insert(0, str(SOURCE_HARNESS / "lib"))
-import progress  # noqa: E402
 import synced  # noqa: E402
 VERSION = (SOURCE_HARNESS / "VERSION").read_text(encoding="utf-8").strip()
 TARGETS_FILE = Path(
@@ -33,9 +32,7 @@ GITIGNORE_LINES = [
     "agent-docs/specs/.running/",
     "agent-docs/specs/.seed/",
     ".harness/sessions/.running/",
-    ".harness/sessions/progress-*.json",
-    ".harness/sessions/progress-*.d/",
-    ".harness/sessions/installer-run.json",
+    ".harness/sessions/rules-*.d/",
     ".harness/**/__pycache__",
 ]
 HOOK_MANAGER_FILES = [
@@ -68,7 +65,12 @@ DEFAULT_AGENT_MODEL = "sonnet"
 MODEL_SELECTABLE_AGENTS = {"code-explorer", "implementer", "test-implementer", "test-verifier"}
 TARGET_CONFIG = ".harness/config.json"
 MANAGED_DOC_DIRS = ("try-n-fail", "todos")
-PROGRESS_DOC_DIRS = ("progress", "progress-logs")
+REMOVED_PROGRESS_DIRS = ("progress", "progress-logs")
+REMOVED_PROGRESS_GITIGNORE_LINES = (
+    ".harness/sessions/progress-*.json",
+    ".harness/sessions/progress-*.d/",
+    ".harness/sessions/installer-run.json",
+)
 
 COMMENT_APPROVAL_LABEL = "comments-approved"
 COMMENT_APPROVAL_LABEL_COLOR = "0E8A16"
@@ -1071,6 +1073,77 @@ def migrate_literal_marker_arguments(target: Path, dry_run: bool) -> list[str]:
     ]
 
 
+def progress_record_dirs(target: Path) -> list[str]:
+    docs_root, _ = _target_docs_settings(target)
+    roots = {"agent-docs"}
+    try:
+        roots.add(docs_root.relative_to(target).as_posix())
+    except ValueError:
+        pass
+    return sorted(f"{root}/{name}" for root in roots for name in REMOVED_PROGRESS_DIRS)
+
+
+def migrate_remove_progress(target: Path, dry_run: bool) -> list[str]:
+    planned = [
+        "remove the session progress hook, the progress CLI, the progress rule file, pre-commit progress sync and "
+        "checks, the post-merge progress move, and the continue-on skill",
+        "rule injection and the SessionStart spec notice move to .harness/hooks/rule_injection.py and "
+        ".harness/hooks/spec_notice.py; rule markers live in .harness/sessions/rules-<session>.d/",
+        "settings and codex hooks drop harness hook groups on events the harness no longer uses",
+        "harness-block.md marks principles 2 and 3 as slated for replacement and not binding",
+    ]
+    directories = [target / relpath for relpath in progress_record_dirs(target)]
+    for relpath in progress_record_dirs(target):
+        planned.append(f"delete {relpath}/ with all its files, tracked or not")
+    sessions = target / ".harness" / "sessions"
+    state = []
+    if sessions.is_dir():
+        state = sorted(
+            path for path in sessions.iterdir()
+            if (path.name.startswith("progress-") and (path.name.endswith(".json") or path.name.endswith(".d")))
+            or path.name == "installer-run.json"
+        )
+    planned.append(
+        "delete .harness/sessions/progress-*.json, .harness/sessions/progress-*.d/, and "
+        ".harness/sessions/installer-run.json"
+    )
+    link = target / ".claude" / "skills" / "continue-on"
+    remove_link = link.is_symlink() and os.readlink(link) == "../../.agents/skills/continue-on"
+    planned.append(
+        "remove the .claude/skills/continue-on symlink when it points to ../../.agents/skills/continue-on"
+    )
+    if not remove_link and (link.exists() or link.is_symlink()):
+        planned.append(".claude/skills/continue-on is not the harness symlink; left in place")
+    planned.append(
+        "remove the .gitignore lines " + ", ".join(REMOVED_PROGRESS_GITIGNORE_LINES)
+    )
+    if dry_run:
+        return planned
+    for directory in directories:
+        if directory.is_symlink() or directory.is_file():
+            directory.unlink()
+        elif directory.is_dir():
+            shutil.rmtree(directory)
+    for path in state:
+        if path.is_dir() and not path.is_symlink():
+            shutil.rmtree(path)
+        else:
+            path.unlink(missing_ok=True)
+    if remove_link:
+        link.unlink()
+    gitignore = target / ".gitignore"
+    if gitignore.is_file():
+        data = gitignore.read_bytes()
+        lines = data.splitlines(keepends=True)
+        kept = [
+            line for line in lines
+            if line.rstrip(b"\r\n").decode("utf-8", errors="replace") not in REMOVED_PROGRESS_GITIGNORE_LINES
+        ]
+        if len(kept) != len(lines):
+            gitignore.write_bytes(b"".join(kept))
+    return planned
+
+
 MIGRATIONS = (
     (parse_version("0.3.0"), "archive stale records", migrate_stale_records),
     (parse_version("0.4.0"), "format stale index archives", migrate_stale_index_logs),
@@ -1164,6 +1237,11 @@ MIGRATIONS = (
         parse_version("0.49.1"),
         "workflow-approach asks for literal marker arguments",
         migrate_literal_marker_arguments,
+    ),
+    (
+        parse_version("0.50.0"),
+        "remove session progress and continue-on; split rule injection and the spec notice into their own hooks",
+        migrate_remove_progress,
     ),
 )
 
@@ -1450,8 +1528,6 @@ def check_write_path_obstructions(target: Path, owned: dict) -> list[str]:
         planned.add(f"agent-docs/{name}/index.md")
         planned.add(f"agent-docs/{name}/stale.md")
         planned.add(f"agent-docs/{name}/stale/.gitkeep")
-    for name in PROGRESS_DOC_DIRS:
-        planned.add(f"agent-docs/{name}/.gitkeep")
     planned.update(skill_links)
 
     conflicts = []
@@ -1496,11 +1572,14 @@ def apply_owned_files(target: Path, owned: dict, old_manifest_files: dict, dry_r
             continue
         disk_path = target / relpath
         if not disk_path.exists():
+            if not dry_run:
+                prune_empty_parents(target, disk_path)
             continue
         disk_sha = sha256_of(disk_path)
         if disk_sha == old_sha:
             if not dry_run:
                 disk_path.unlink()
+                prune_empty_parents(target, disk_path)
             report["write"].append(f"delete {relpath}")
         else:
             report["skip"].append(f"{relpath} (user-modified, not deleted)")
@@ -1525,17 +1604,28 @@ def _group_is_harness(group: dict) -> bool:
     return any("/.harness/" in h.get("command", "") for h in group.get("hooks", []))
 
 
+def prune_empty_parents(target: Path, path: Path) -> None:
+    """Directories at depth one or two (e.g. .harness/hooks, .agents/skills) are
+    install roots and stay even when empty."""
+    directory = path.parent
+    while len(directory.relative_to(target).parts) > 2:
+        try:
+            directory.rmdir()
+        except OSError:
+            return
+        directory = directory.parent
+
+
 def merge_hooks_dict(existing: dict, new_hooks: dict) -> dict:
     result = dict(existing)
-    hooks = dict(result.get("hooks", {}))
-    for event, new_groups in new_hooks["hooks"].items():
-        old_groups = hooks.get(event, [])
-        kept = [g for g in old_groups if not _group_is_harness(g)]
-        combined = kept + new_groups
+    old_hooks = result.get("hooks", {})
+    new_events = new_hooks["hooks"]
+    hooks = {}
+    for event in [*old_hooks, *(event for event in new_events if event not in old_hooks)]:
+        kept = [g for g in old_hooks.get(event, []) if not _group_is_harness(g)]
+        combined = kept + list(new_events.get(event, []))
         if combined:
             hooks[event] = combined
-        elif event in hooks:
-            del hooks[event]
     result["hooks"] = hooks
     return result
 
@@ -1712,7 +1802,7 @@ def ensure_agent_docs_dirs(target: Path, dry_run: bool, report: dict):
                 stale_gitkeep.parent.mkdir(parents=True, exist_ok=True)
                 stale_gitkeep.write_text("", encoding="utf-8")
             report["write"].append(str(stale_gitkeep.relative_to(target)))
-    for name in ("synced-comments", *PROGRESS_DOC_DIRS):
+    for name in ("synced-comments",):
         gitkeep = target / "agent-docs" / name / ".gitkeep"
         if not gitkeep.exists():
             if not dry_run:
@@ -1950,8 +2040,6 @@ def commit_candidates(owned: dict, old_files: dict) -> set[str]:
         candidates.update(
             f"agent-docs/{name}/{leaf}" for leaf in ("index.md", "stale.md", "stale/.gitkeep")
         )
-    for name in PROGRESS_DOC_DIRS:
-        candidates.add(f"agent-docs/{name}/.gitkeep")
     candidates.update(f".claude/skills/{skill_src.name}" for skill_src in iter_skill_dirs())
     return candidates
 
@@ -1987,13 +2075,6 @@ def auto_commit(target: Path, changed: list[str], old_version, report: dict) -> 
     run_git(target, ["--literal-pathspecs"] + restore + pathspec_args, stdin=pathspecs)
 
 
-def _safe_fingerprint(target: Path) -> str | None:
-    try:
-        return progress.git_worktree_fingerprint(target, ".harness/")
-    except progress.GitUnavailable:
-        return None
-
-
 def cmd_update(
     target: Path,
     dry_run: bool,
@@ -2022,14 +2103,7 @@ def cmd_update(
         print_report(report)
         return 1
 
-    fingerprint_before = None if dry_run else _safe_fingerprint(target)
-    try:
-        return _update_after_manifest(target, dry_run, no_ci, ask_tools, model, commit, report, manifest)
-    finally:
-        if fingerprint_before is not None:
-            fingerprint_after = _safe_fingerprint(target)
-            if fingerprint_after is not None:
-                progress.write_installer_run(target, fingerprint_before, fingerprint_after)
+    return _update_after_manifest(target, dry_run, no_ci, ask_tools, model, commit, report, manifest)
 
 
 def _update_after_manifest(
@@ -2154,7 +2228,19 @@ def finish_auto_commit(
     if not changed:
         report["skip"].append("auto-commit: nothing to commit")
         return
-    unexpected = [path for path in changed if path in status_before and path not in candidates]
+    removed_dirs = tuple(f"{relpath}/" for relpath in progress_record_dirs(target))
+    removed_records = {path for path in changed if path.startswith(removed_dirs)}
+    # An untracked record the migration deleted has nothing to commit, and naming it
+    # as a pathspec would make `git add` fail.
+    changed = [path for path in changed if path not in removed_records or path in status_after]
+    if not changed:
+        report["skip"].append("auto-commit: nothing to commit")
+        return
+    listing = ", ".join(changed)
+    unexpected = [
+        path for path in changed
+        if path in status_before and path not in candidates and path not in removed_records
+    ]
     if unexpected:
         report["manual review"].append(
             "auto-commit skipped: this update changed files that were already modified: "

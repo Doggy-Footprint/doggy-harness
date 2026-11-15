@@ -24,14 +24,6 @@
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/telemetry_hook.py\""
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/progress_hook.py\""
-          }
-        ]
       }
     ],
     "SubagentStart": [
@@ -74,11 +66,11 @@
         ]
       },
       {
-        "matcher": "Bash|Write|Edit|MultiEdit",
+        "matcher": "Write|Edit|MultiEdit",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/progress_hook.py\""
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/rule_injection.py\""
           }
         ]
       }
@@ -96,7 +88,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/progress_hook.py\""
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/spec_notice.py\""
           }
         ]
       }
@@ -128,15 +120,6 @@
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/telemetry_hook.py\""
           }
         ]
-      },
-      {
-        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/progress_hook.py\""
-          }
-        ]
       }
     ],
     "PostToolUseFailure": [
@@ -146,45 +129,6 @@
           {
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/telemetry_hook.py\""
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/progress_hook.py\""
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/progress_hook.py\""
-          }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/progress_hook.py\""
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/progress_hook.py\""
           }
         ]
       }

@@ -15,6 +15,4 @@ analytics/frontend/node_modules/
 analytics/frontend/dist/
 .harness-targets.json
 .hypothesis/
-.harness/sessions/progress-*.json
-.harness/sessions/progress-*.d/
-.harness/sessions/installer-run.json
+.harness/sessions/rules-*.d/

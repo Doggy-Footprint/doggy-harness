@@ -23,9 +23,8 @@ MARKER_SCRIPT = ".harness/bin/workflow_marker.py"
 SEPARATOR_CHARS = ";&|()"
 # REPO_ROOT is symlink-resolved (config.py resolves __file__); tool_input
 # paths from the calling agent usually are not, so resolve() here too or
-# every spec/progress write silently drops on a symlinked worktree (e.g. macOS /tmp).
+# every spec write silently drops on a symlinked worktree (e.g. macOS /tmp).
 SPECS_DIR = PATHS.specs.resolve()
-PROGRESS_DIR = PATHS.progress.resolve()
 FACTS_DIR = PATHS.facts.resolve()
 FACT_DIMENSIONS = {"load", "data", "concurrency", "environment", "consumers", "roadmap", "failure", "cost"}
 BRIEF_STAGES = {"understanding", "decision", "approval"}
@@ -93,8 +92,6 @@ def emit_path_write(payload: dict, path_str) -> None:
     path = resolve_path(path_str)
     if path.parent == SPECS_DIR and path.suffix == ".md":
         telemetry.emit(payload, "spec_write", spec=path.stem, version=parse_spec_version(path))
-    elif path.parent == PROGRESS_DIR and path.suffix == ".md":
-        telemetry.emit(payload, "progress_write", file=path.name)
     elif path.parent == FACTS_DIR and path.suffix == ".md" and path.name not in ("index.md", "stale.md"):
         telemetry.emit(payload, "fact_write", **fact_fields(path.name))
 

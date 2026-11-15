@@ -217,6 +217,33 @@ class StaleCase(InstallerTestCase):
         self.assertEqual(tree(repo), before)
 
 
+class TestFormerProgressStale(StaleCase):
+    def outcome(self, directory):
+        repo, folder = self.stale_repo(names=(A, B), directory=f"agent-docs/{directory}")
+        result = self.stale(repo, f"agent-docs/{directory}/{A}")
+
+        def normalized(text):
+            for root in {str(repo), str(repo.resolve())}:
+                text = text.replace(root, "<repo>")
+            return text.replace(f"agent-docs/{directory}", "agent-docs/DIR").replace(f"{directory}/", "DIR/")
+
+        contents = {path.relative_to(folder).as_posix(): path.read_bytes()
+                    for path in sorted(folder.rglob("*")) if path.is_file()}
+        return result.returncode, normalized(result.stdout), normalized(result.stderr), contents
+
+    def test_vo8_f10_former_progress_directories_are_marked_stale_like_any_directory(self):
+        expected = self.outcome("notes")
+        code, _, _, contents = expected
+        self.assertEqual(code, 0, expected)
+        self.assertIn(f"stale/{A}", contents)
+        self.assertNotIn(A, contents)
+        self.assertIn(index_block(A).encode(), contents["stale.md"])
+        self.assertNotIn(index_block(A).encode(), contents["index.md"])
+        for directory in ("progress", "progress-logs"):
+            with self.subTest(directory=directory):
+                self.assertEqual(self.outcome(directory), expected)
+
+
 class TestStale(StaleCase):
     def assert_marked(self, repo, folder, name, index_after, stale_after):
         result = self.stale(repo, (folder / name).relative_to(repo).as_posix())

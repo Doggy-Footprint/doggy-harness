@@ -10,8 +10,7 @@ import unittest
 from pathlib import Path
 
 from test_installer import REPO_ROOT, InstallerTestCase, run_git, run_installer
-from test_hook_owned_progress import valid_text
-from test_record_only_progress import BASE_0420, old_release_source
+from old_release import old_release_source
 
 ID = "a1b2c3d4e5f6"
 ID2 = "0f1e2d3c4b5a"
@@ -80,6 +79,13 @@ def block_of(path, lines, ident):
     inner = [line for line in lines[start:stop - 1]
              if not re.search(r"synced (id|end): [0-9a-f]{12}", line) and not line.strip().startswith("#")]
     return (path, start, inner)
+
+
+def quoted_fact(repo, docs, quoted):
+    path = repo / docs / "facts" / "1111111111111111-quote.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"dimension: load\nfact: {quoted}\nsource: user, 2026-11-13\nasked for: x\nre-check: ask the user\n")
+    return path
 
 
 def tracking_text(version, count, code_hash, extra="", body=TRACKING_BODY):
@@ -198,9 +204,7 @@ class TestSynced(SyncedCase):
     def test_tag_quoted_inside_agent_docs_is_not_a_code_location(self):
         repo = self.basic()
         quoted = f"`{tag(ID, 1, 3, 'md')}` and `{tag(UNRELATED, 1, 1, 'md')}` quoted in prose"
-        progress = repo / "agent-docs" / "progress" / "1111111111111111-quote.md"
-        progress.parent.mkdir(parents=True, exist_ok=True)
-        progress.write_text(valid_text("sessb", changes=f"- {quoted}"))
+        quoted_fact(repo, "agent-docs", quoted)
         tracking = repo / "agent-docs" / "synced-comments" / f"{ID}.md"
         tracking.write_text(tracking.read_text().replace("shared text", f"shared text {quoted}"))
         self.assert_passes(repo)
@@ -432,9 +436,7 @@ class TestConfiguredDocsRootScan(SyncedCase):
     def test_tracking_file_and_quoted_tags_under_the_configured_docs_root_are_used_and_excluded(self):
         repo = self.basic(docs_root="docs/agent")
         quoted = f"`{tag(ID, 1, 3, 'md')}` quoted in prose"
-        progress = repo / "docs" / "agent" / "progress" / "1111111111111111-quote.md"
-        progress.parent.mkdir(parents=True, exist_ok=True)
-        progress.write_text(valid_text("sessb", changes=f"- {quoted}"))
+        quoted_fact(repo, "docs/agent", quoted)
         self.assert_passes(repo)
 
     def test_default_agent_docs_path_is_scanned_when_it_is_not_the_configured_docs_root(self):
@@ -492,7 +494,7 @@ class TestUpdateFrom0420(SyncedCase):
         result = self.update(repo)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         announced = re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE)
-        self.assertEqual(announced, ["0.43.0", "0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1"], result.stdout)
+        self.assertEqual(announced, ["0.43.0", "0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1", "0.50.0"], result.stdout)
         start = result.stdout.index("migration 0.43.0:")
         positions = []
         for line in S11:
@@ -500,7 +502,7 @@ class TestUpdateFrom0420(SyncedCase):
             positions.append(result.stdout.index(line, start))
         self.assertEqual(positions, sorted(positions))
         self.assertEqual((repo / "AGENTS.md").read_bytes(), agents)
-        self.assertEqual(json.loads((repo / ".harness" / "manifest.json").read_text())["version"], "0.49.1")
+        self.assertEqual(json.loads((repo / ".harness" / "manifest.json").read_text())["version"], "0.50.0")
         doctor = run_installer("doctor", str(repo))
         self.assertEqual(doctor.returncode, 0, doctor.stdout + doctor.stderr)
 

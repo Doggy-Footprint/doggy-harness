@@ -20,8 +20,6 @@ class Paths:
         self.exclude_dirs = set(config["exclude_dirs"])
         self.try_n_fail = self.docs_root / "try-n-fail"
         self.todos = self.docs_root / "todos"
-        self.progress = self.docs_root / "progress"
-        self.progress_logs = self.docs_root / "progress-logs"
         self.synced_comments = self.docs_root / "synced-comments"
         self.specs = self.docs_root / "specs"
         self.spec_logs = self.docs_root / "spec-logs"

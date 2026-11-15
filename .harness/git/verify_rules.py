@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import os
 import re
 import subprocess
 import sys
@@ -7,7 +6,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 import config  # noqa: E402
-import progress  # noqa: E402
 import synced  # noqa: E402
 
 PATHS = config.load_paths()
@@ -32,7 +30,6 @@ REQUIRED_HEADINGS = {
 }
 TITLED_DIRS = {PATHS.todos}
 WORKFLOW_DOC_DIRS = {"specs", "spec-logs"}
-PROGRESS_DOC_DIRS = {"progress", "progress-logs"}
 FACT_DOC_DIRS = {"facts"}
 RETIRED_DOC_DIRS = {"adr", "rejections", "handoff"}
 
@@ -49,7 +46,7 @@ def iter_docs_root_files():
             continue
         docs_parts = path.relative_to(PATHS.docs_root).parts
         if "stale" in docs_parts or (
-            docs_parts and docs_parts[0] in WORKFLOW_DOC_DIRS | PROGRESS_DOC_DIRS | FACT_DOC_DIRS | RETIRED_DOC_DIRS
+            docs_parts and docs_parts[0] in WORKFLOW_DOC_DIRS | FACT_DOC_DIRS | RETIRED_DOC_DIRS
         ):
             continue
         if any(part in EXCLUDE_DIRS for part in path.relative_to(REPO_ROOT).parts):
@@ -211,87 +208,7 @@ def check_required_headings(errors: list, only=None):
                 errors.append(f"{rel(path)}: missing required heading(s) {missing}")
 
 
-def check_progress(errors: list):
-    if not PATHS.progress.is_dir():
-        return
-    current = sorted(path for path in PATHS.progress.glob("*.md") if path.is_file())
-    if len(current) > 1:
-        errors.append(
-            f"{rel(PATHS.progress)}: holds {len(current)} progress files ({', '.join(p.name for p in current)}); "
-            f"keep only the current session's and move the others to {rel(PATHS.progress_logs)}/"
-        )
-    for path in current:
-        parsed = progress.parse(path.read_text(encoding="utf-8", errors="replace"))
-        for line, message in progress.format_findings(parsed):
-            errors.append(f"{rel(path)}:{line}: {message}")
-
-
-def check_progress_secrets(errors: list):
-    suffixes = config.load_mask_host_suffixes()
-    for directory in (PATHS.progress, PATHS.progress_logs):
-        if not directory.is_dir():
-            continue
-        for path in sorted(directory.rglob("*.md")):
-            if not path.is_file():
-                continue
-            text = path.read_text(encoding="utf-8", errors="replace")
-            for line, category in progress.unmasked(text, suffixes):
-                errors.append(
-                    f"{rel(path)}:{line}: unmasked {category}; replace it with [masked:{category}]"
-                )
-
-
 RULE_FILE_DIR = ".harness/instructions"
-IN_PROGRESS_GIT_STATES = ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply")
-
-
-def git_dir() -> Path | None:
-    result = subprocess.run(
-        ["git", "-C", str(REPO_ROOT), "rev-parse", "--git-dir"], capture_output=True, text=True
-    )
-    if result.returncode != 0 or not result.stdout.strip():
-        return None
-    return (REPO_ROOT / result.stdout.strip()).resolve()
-
-
-def check_session_progress(errors: list):
-    session_id = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
-    if not session_id or os.environ.get("HARNESS_UPDATE_COMMIT") == "1":
-        return
-    if not (progress.change_dir(REPO_ROOT, session_id) / "modified").is_file():
-        return
-    try:
-        directory = git_dir()
-    except OSError:
-        return
-    if directory is None or any((directory / name).exists() for name in IN_PROGRESS_GIT_STATES):
-        return
-    owned = []
-    for folder in (PATHS.progress, PATHS.progress_logs):
-        owned.extend(progress.session_files(folder, session_id))
-    progress_rel, logs_rel = rel(PATHS.progress), rel(PATHS.progress_logs)
-    if not owned:
-        errors.append(
-            f"session {session_id} changed the project but no progress in {progress_rel}/ or {logs_rel}/ has "
-            f"`session: {session_id}`; write one and stage it with this commit"
-        )
-        return
-    for path in owned:
-        label = rel(path)
-        staged = subprocess.run(["git", "-C", str(REPO_ROOT), "rev-parse", "--verify", "--quiet", f":{label}"],
-                                capture_output=True, text=True)
-        worktree = progress.git_file_hash(REPO_ROOT, label)
-        if staged.returncode != 0 or staged.stdout.strip() != worktree:
-            errors.append(f"{label}: progress of session {session_id} is not staged with this commit; run `git add {label}`")
-        parsed = progress.parse(path.read_text(encoding="utf-8", errors="replace"))
-        if progress.is_record_only(parsed) and progress.code_marker(REPO_ROOT, session_id).exists():
-            errors.append(
-                f"{label}:1: record-only progress in a session that changed code; run any Edit to let the hook "
-                "upgrade it, or write the full structure"
-            )
-        if path.parent == PATHS.progress_logs:
-            for line, message in progress.format_findings(parsed):
-                errors.append(f"{label}:{line}: {message}")
 
 
 def main() -> int:
@@ -308,9 +225,6 @@ def main() -> int:
     run("synced-comments.md", check_synced_comments)
     run("try-n-fail.md", check_required_headings, PATHS.try_n_fail)
     run("todos.md", check_required_headings, PATHS.todos)
-    run("progress.md", check_progress)
-    run("progress.md", check_progress_secrets)
-    run("progress.md", check_session_progress)
 
     if errors:
         order = [
@@ -318,7 +232,6 @@ def main() -> int:
             "synced-comments.md",
             "try-n-fail.md",
             "todos.md",
-            "progress.md",
         ]
         rule_files = ", ".join(f"{RULE_FILE_DIR}/{name}" for name in order if name in violated)
         print("harness rule violations found:\n", file=sys.stderr)

@@ -80,17 +80,16 @@ class TestCommitStamp(DocRecordsTestCase):
             self.run_doc_hook(repo, path)
         self.assertEqual({path: path.read_text() for path in before}, before)
 
-    def test_o10_signatures_progress_directory_is_skipped_by_doc_commit(self):
+    def test_vo8_fr9_former_progress_directory_is_stamped_like_any_record(self):
         repo, _ = self.installed()
         self.assertEqual(self.commit_all(repo).returncode, 0)
-        progress = repo / "agent-docs" / "progress" / "1111111111111111-task.md"
-        progress.parent.mkdir(parents=True, exist_ok=True)
-        progress.write_text("---\nsession: S1\n---\n\n# Task\n")
-        before = progress.read_bytes()
+        record = repo / "agent-docs" / "progress" / "1111111111111111-task.md"
+        record.parent.mkdir(parents=True, exist_ok=True)
+        record.write_text("---\nsession: S1\n---\n\n# Task\n")
 
-        self.assertEqual(self.run_doc_hook(repo, progress).returncode, 0)
+        self.assertEqual(self.run_doc_hook(repo, record).returncode, 0)
 
-        self.assertEqual(progress.read_bytes(), before)
+        self.assertEqual(record.read_text(), f"---\nsession: S1\ncommit: {self.head(repo)}\n---\n\n# Task\n")
 
     def test_repository_without_commits_is_left_alone(self):
         repo, _ = self.installed()
@@ -238,7 +237,7 @@ class TestMigration0290(DocRecordsTestCase):
         self.assertIn("keep agent-docs/adr/ untouched", result.stdout)
         self.assertNotIn("agent-docs/rejections/", result.stdout)
         self.assertEqual(record.read_text(), "# X\n")
-        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.49.1")
+        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.50.0")
         block = (repo / ".harness" / "instructions" / "harness-block.md").read_text()
         self.assertNotIn("## Try-n-Fail Rule", block)
         self.assertIn("## Try-n-Fail Rule", (repo / ".harness" / "instructions" / "try-n-fail.md").read_text())
@@ -292,151 +291,16 @@ class TestMigration0290(DocRecordsTestCase):
         self.assertEqual(self.handoffs(repo), [])
 
 
-PROGRESS_NAME = "0123456789abcdef-sample-task.md"
-PROGRESS_TEMPLATE = """---
-session: S1
-before: none
-previous: none
-branch: main
-commit: abcdef0123456789abcdef0123456789abcdef01
----
-
-# Sample task
-
-## Next Session
-
-### State
-- the parser is half done
-  - commit: abcdef0123456789abcdef0123456789abcdef01; files: src/parser.py
-
-### Next Step
-- finish the tokenizer
-  - commit: abcdef0123456789abcdef0123456789abcdef01; files: none
-
-### Constraints
-- "do not touch the api"
-  - source: user request 1
-
-### Verify
-- run the parser tests
-  - commit: abcdef0123456789abcdef0123456789abcdef01; files: none
-
-### Dead Ends
-- regex tokenizer was too slow
-  - commit: abcdef0123456789abcdef0123456789abcdef01; files: none
-
-### Related
-- agent-docs/try-n-fail/index.md
-  - commit: abcdef0123456789abcdef0123456789abcdef01; files: none
-
-## Record
-
-### Changes
-- edited the parser
-
-### Commands
-- ran the tests
-
-### Failed Attempts
-| attempt | failure evidence | cause |
-| --- | --- | --- |
-
-### Sources
-- none
-
-### User Requests
-"""
 TODO_INDEX_BLOCK = "File: {name}\nSummary: s\nRelated Files: none\nRelated Symbols: none\n"
 
 
-class ProgressRecordTestCase(DocRecordsTestCase):
-    def progress_dir(self, repo):
-        directory = repo / "agent-docs" / "progress"
-        directory.mkdir(parents=True, exist_ok=True)
-        return directory
-
-    def logs_dir(self, repo):
-        directory = repo / "agent-docs" / "progress-logs"
-        directory.mkdir(parents=True, exist_ok=True)
-        return directory
-
+class RecordRulesTestCase(DocRecordsTestCase):
     def verify(self, repo):
         result = self.run_verify_rules(repo)
         return result, result.stdout + result.stderr
 
 
-class TestProgressRecordRules(ProgressRecordTestCase):
-    def test_o8_baseline_valid_progress_passes(self):
-        repo, _ = self.installed()
-        (self.progress_dir(repo) / PROGRESS_NAME).write_text(PROGRESS_TEMPLATE)
-        result, output = self.verify(repo)
-        self.assertEqual(result.returncode, 0, output)
-
-    def test_o8_c19_two_progress_files_fail(self):
-        repo, _ = self.installed()
-        directory = self.progress_dir(repo)
-        (directory / PROGRESS_NAME).write_text(PROGRESS_TEMPLATE)
-        (directory / "fedcba9876543210-other-task.md").write_text(PROGRESS_TEMPLATE)
-        result, output = self.verify(repo)
-        self.assertEqual(result.returncode, 1, output)
-        self.assertIn("progress", output)
-
-    def test_o8_fr16_each_missing_required_heading_fails(self):
-        headings = ("## Next Session", "### State", "### Next Step", "### Constraints", "### Verify",
-                    "### Dead Ends", "### Related", "## Record", "### Changes", "### Commands",
-                    "### Failed Attempts", "### Sources", "### User Requests")
-        for heading in headings:
-            with self.subTest(missing=heading):
-                repo, _ = self.installed()
-                text = PROGRESS_TEMPLATE.replace(f"\n{heading}\n", "\n", 1)
-                self.assertNotEqual(text, PROGRESS_TEMPLATE)
-                (self.progress_dir(repo) / PROGRESS_NAME).write_text(text)
-                result, output = self.verify(repo)
-                self.assertEqual(result.returncode, 1, output)
-
-    def test_o8_fr16_missing_title_fails(self):
-        repo, _ = self.installed()
-        (self.progress_dir(repo) / PROGRESS_NAME).write_text(PROGRESS_TEMPLATE.replace("# Sample task\n", ""))
-        result, output = self.verify(repo)
-        self.assertEqual(result.returncode, 1, output)
-
-    def test_o8_fr16_bad_metadata_lines_fail(self):
-        good = "  - commit: abcdef0123456789abcdef0123456789abcdef01; files: src/parser.py"
-        cases = {
-            "entry without metadata line": ("- the parser is half done\n" + good + "\n", "- the parser is half done\n"),
-            "commit too short": (good, "  - commit: abc12; files: src/parser.py"),
-            "commit not hex": (good, "  - commit: zzzzzzzzzz; files: src/parser.py"),
-            "missing files field": (good, "  - commit: abcdef0123456789abcdef0123456789abcdef01"),
-            "garbage metadata": (good, "  - whatever: nothing"),
-            "constraint without source": ("  - source: user request 1", "  - commit: abcdef0123456789abcdef0123456789abcdef01; files: none"),
-        }
-        for label, (old, new) in cases.items():
-            with self.subTest(case=label):
-                repo, _ = self.installed()
-                text = PROGRESS_TEMPLATE.replace(old, new, 1)
-                self.assertNotEqual(text, PROGRESS_TEMPLATE)
-                (self.progress_dir(repo) / PROGRESS_NAME).write_text(text)
-                result, output = self.verify(repo)
-                self.assertEqual(result.returncode, 1, output)
-
-    def test_o8_fr16_progress_logs_skip_format_checks(self):
-        repo, _ = self.installed()
-        directory = self.logs_dir(repo)
-        (directory / PROGRESS_NAME).write_text("garbage without headings or frontmatter\n")
-        (directory / "fedcba9876543210-two.md").write_text(PROGRESS_TEMPLATE.replace("## Record", "## Recordx"))
-        result, output = self.verify(repo)
-        self.assertEqual(result.returncode, 0, output)
-
-    def test_o8_fr16_progress_directories_need_no_index_files(self):
-        repo, _ = self.installed()
-        (self.progress_dir(repo) / PROGRESS_NAME).write_text(PROGRESS_TEMPLATE)
-        (self.logs_dir(repo) / "fedcba9876543210-old.md").write_text(PROGRESS_TEMPLATE)
-        for name in ("progress", "progress-logs"):
-            for leftover in ("index.md", "stale.md", "stale"):
-                self.assertFalse((repo / "agent-docs" / name / leftover).exists())
-        result, output = self.verify(repo)
-        self.assertEqual(result.returncode, 0, output)
-
+class TestRecordRules(RecordRulesTestCase):
     def test_facts_directory_needs_no_index_files(self):
         repo, _ = self.installed()
         facts = repo / "agent-docs" / "facts"
@@ -502,107 +366,3 @@ class TestProgressRecordRules(ProgressRecordTestCase):
         (handoff / "not-a-record-name.md").write_text("no heading\n")
         result, output = self.verify(repo)
         self.assertEqual(result.returncode, 0, output)
-
-
-SECRET_SAMPLES = {
-    "token": (
-        "AKIAIOSFODNN7ABCDEFG",
-        "ghp_" + "a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8",
-        "password=hunter2",
-        "sk-ant-api03-abcdefghijklmnopqrstuvwx",
-    ),
-    "email": ("alice@acme.io", "bob.smith@corp-mail.co"),
-    "ip": ("10.0.0.5", "192.168.1.255", "fe80::1"),
-    "host": ("build01.corp", "db.prod.internal"),
-}
-CLEAN_LINES = (
-    "dev@example.com",
-    "127.0.0.1",
-    "::1",
-    "task-runner-abcdefghijklmnopqrstuv",
-    "version 1.2.3",
-    "300.1.1.1",
-    "[masked:token] [masked:email] [masked:ip] [masked:host] [masked:log 12 lines]",
-    "plain words only",
-)
-
-
-class TestProgressSecretCheck(ProgressRecordTestCase):
-    def place(self, repo, location, line_text):
-        directory = self.progress_dir(repo) if location == "progress" else self.logs_dir(repo)
-        lines = PROGRESS_TEMPLATE.splitlines()
-        index = lines.index("- edited the parser")
-        lines[index] = line_text
-        path = directory / PROGRESS_NAME
-        path.write_text("\n".join(lines) + "\n")
-        return path, index + 1
-
-    def place_at_line(self, repo, line_number, line_text):
-        lines = ["filler line"] * (line_number - 1) + [line_text, "tail"]
-        path = self.logs_dir(repo) / PROGRESS_NAME
-        path.write_text("\n".join(lines) + "\n")
-        self.assertEqual(path.read_text().splitlines()[line_number - 1], line_text)
-        return path
-
-    def test_o15_q8_every_detected_category_fails_in_both_locations(self):
-        for location in ("progress", "progress-logs"):
-            for category, samples in SECRET_SAMPLES.items():
-                for sample in samples:
-                    with self.subTest(location=location, category=category, sample=sample):
-                        repo, _ = self.installed()
-                        path, line = self.place(repo, location, f"- note: {sample} end")
-                        result, output = self.verify(repo)
-                        self.assertEqual(result.returncode, 1, output)
-                        self.assertIn(f"{path.name}:{line}", output)
-                        self.assertIn(f"[masked:{category}]", output)
-
-    def test_o15_c30_akia_key_at_line_40_in_progress_logs_names_line_and_category(self):
-        repo, _ = self.installed()
-        path = self.place_at_line(repo, 40, "AKIAIOSFODNN7ABCDEFG")
-        result, output = self.verify(repo)
-        self.assertEqual(result.returncode, 1, output)
-        self.assertIn(f"{path.name}:40", output)
-        self.assertIn("token", output)
-
-    def test_o15_failure_names_the_actual_line(self):
-        repo, _ = self.installed()
-        path = self.place_at_line(repo, 57, "contact alice@acme.io")
-        result, output = self.verify(repo)
-        self.assertEqual(result.returncode, 1, output)
-        self.assertIn(f"{path.name}:57", output)
-        self.assertNotIn(f"{path.name}:40", output)
-
-    def test_o15_category_none_and_exceptions_pass_in_both_locations(self):
-        for location in ("progress", "progress-logs"):
-            for line in CLEAN_LINES:
-                with self.subTest(location=location, line=line):
-                    repo, _ = self.installed()
-                    self.place(repo, location, f"- {line}")
-                    result, output = self.verify(repo)
-                    self.assertEqual(result.returncode, 0, output)
-
-    def test_o15_fr24_log_block_rule_is_not_applied_at_commit_time(self):
-        repo, _ = self.installed()
-        block = "\n".join(f"2026-10-28 10:00:0{n} INFO step {n}" for n in (1, 2, 3))
-        self.place(repo, "progress-logs", block)
-        result, output = self.verify(repo)
-        self.assertEqual(result.returncode, 0, output)
-
-    def test_o15_only_markdown_files_in_progress_directories_are_scanned(self):
-        repo, _ = self.installed()
-        (self.logs_dir(repo) / "notes.txt").write_text("AKIAIOSFODNN7ABCDEFG\n")
-        result, output = self.verify(repo)
-        self.assertEqual(result.returncode, 0, output)
-
-
-    def test_o16_q3_secret_finding_names_the_file_and_an_action(self):
-        verbs = ("write", "merge", "add", "rename", "ask", "re-check", "replace", "end", "remove", "quote", "move", "update", "run", "fix")
-        pattern = re.compile(r"(?<![\w-])(" + "|".join(re.escape(v) for v in verbs) + r")(?![\w-])", re.I)
-        for location in ("progress", "progress-logs"):
-            with self.subTest(location=location):
-                repo, _ = self.installed()
-                path, _ = self.place(repo, location, "- note: alice@acme.io")
-                result, output = self.verify(repo)
-                self.assertEqual(result.returncode, 1, output)
-                self.assertIn(path.name, output)
-                self.assertRegex(output, pattern)

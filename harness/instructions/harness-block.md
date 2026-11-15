@@ -7,6 +7,8 @@
 2. **Preserve Failed Attempts**: Approaches whose failure took real work to discover (an implementation, a run, or an investigation, not a reading of the code), and concrete proposals the user rejected, keep their evidence and cause: in the session progress while the task is open, in a try-n-fail record afterwards.
 3. **Record Observations, Not Mandates**: Records carried across sessions state what was observed, its evidence, and how to re-check it. They do not bind a later session to an earlier session's choices; a later session re-checks and decides for itself.
 
+Principles 2 and 3 will be replaced by a new approach; until then, following them is not required.
+
 ### Comment Enforcement
 
 A comment/docstring is allowed only when it records a non-obvious:
@@ -34,7 +36,6 @@ These rules live in separate files under `.harness/instructions/`. A hook adds a
 
 | file | read before |
 | --- | --- |
-| `progress.md` | committing in a session that changed the project, continuing earlier work, or opening a PR |
 | `index-and-staleness.md` | adding, renaming, or marking stale a record in `agent-docs/` |
 | `try-n-fail.md` | proposing a try-n-fail record |
 | `todos.md` | writing a todo |
