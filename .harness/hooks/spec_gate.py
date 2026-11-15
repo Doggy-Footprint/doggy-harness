@@ -50,7 +50,7 @@ def on_pre_tool_use(payload: dict) -> int:
         for marker in running
     )
     print(
-        f"workflow-approach: `Test command` is blocked until these subagents report: {listing}. "
+        f"doggy-workflow: `Test command` is blocked until these subagents report: {listing}. "
         "If a subagent is no longer running, delete its marker file.",
         file=sys.stderr,
     )

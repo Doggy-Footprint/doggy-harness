@@ -25,7 +25,7 @@ python3 installer/harness.py doctor <target>
 
 - 이미 설치된 저장소(`.harness/manifest.json` 있음)는 `install` 대신 `update`를 씁니다.
 - 언어(Python, JS/TS, Go, Rust)를 감지해 fuzzing/mutation 도구가 없으면 설치 여부를 `[y/N/never]`로 묻습니다. `never`는 `~/.harness/preferences.json`에 저장됩니다. 도구를 설치하지 않았다면 spec의 `Mutation tool:`을 `none`으로 둡니다.
-- `--model`은 `implementer`, `test-implementer`, `test-verifier`, `code-explorer`에 적용됩니다. 이후 `--model` 없이 `update`하면 저장된 값을 씁니다. `mutant-triager`는 항상 `haiku`를 씁니다. workflow 브리프에는 역할별 모델이 기본값으로 표시됩니다.
+- `--model`은 `implementer`, `test-implementer`, `test-verifier`, `code-explorer`에 적용됩니다. 이후 `--model` 없이 `update`하면 저장된 값을 씁니다. `mutant-triager`는 항상 `haiku`를 씁니다. 설치된 모델과 다른 모델이 필요한 작업이면 workflow 브리프가 이유와 함께 제안합니다.
 - 파일이나 스킬 이름이 충돌하면 설치를 중단하고 경로를 알려 줍니다.
 
 ## 설치되는 것
@@ -34,12 +34,12 @@ python3 installer/harness.py doctor <target>
 | --- | --- |
 | `.harness/` | 버전별 payload, 스크립트, 소유 파일의 SHA manifest |
 | `AGENTS.md`, `CLAUDE.md` | 프로젝트 정의와 관리형 문서 규칙 (`CLAUDE.md`는 `@AGENTS.md` 참조) |
-| `.agents/skills/`, `.claude/skills/` | `workflow-approach` |
+| `.agents/skills/`, `.claude/skills/` | `doggy-workflow` |
 | `.claude/agents/` | `implementer`, `test-implementer`, `test-verifier`, `mutant-triager`, `code-explorer` |
 | `.claude/settings.json` | 세션·서브에이전트·도구 훅. `gh pr create`/`gh pr edit` 뒤에는 PR 설명을 5분 standup 소개 기준으로 쓰라고 상기시킴. 규칙 주입 훅(`rule_injection.py`)은 `agent-docs/`의 규칙 디렉터리에 세션 처음으로 Write/Edit/MultiEdit 하면 그 규칙 파일 본문을 컨텍스트로 추가하고, spec 알림 훅(`spec_notice.py`)은 세션 시작 때 열린 spec, 복원되지 않은 seed, 남은 서브에이전트 표시를 알림 |
 | `.harness/bin/records.py` | `stale <path>`는 기록을 `stale/`로 옮기고 index 항목을 `stale.md`로 옮김, `synced-refresh <id>`는 동기화 주석의 count·code_hash·version·태그를 갱신 |
 | `.harness/git/` | 커밋 전 문서 규칙 검사(동기화 주석은 태그와 `synced end: <id>` 줄 사이의 코드만 `code_hash`로 검사하며 `agent-docs/` 안의 태그는 세지 않음), 커밋 메시지의 `Request:`·`Intent:` 줄 경고 |
-| `agent-docs/` | try-n-fail 기록, todo, spec, 실행 기록, 사용자가 알려 준 프로젝트 사실(`facts/`) |
+| `agent-docs/` | try-n-fail 기록, todo, spec, 실행 기록, 사용자가 승인한 프로젝트 사실(`facts.md`) |
 | `.github/workflows/harness-comment-warning.yml` | 새 주석이 있는 PR은 `comments-approved` 라벨이 있어야 통과 (선택) |
 
 기존 설정과의 관계:
@@ -48,18 +48,22 @@ python3 installer/harness.py doctor <target>
 - 기존 `AGENTS.md`는 프로젝트 정의만 남기고 원문을 `agent-docs/logs/`에 보관합니다.
 - Git hook 관리자가 없으면 `core.hooksPath`를 `.harness/git`으로 설정합니다. Husky 등이 있으면 수동 연결 방법만 출력합니다.
 - 새 주석은 커밋 때는 경고만 하고, PR에서는 라벨이 없으면 실패합니다.
-- 새 회고 항목 없이 바뀐 spec과 `Request:`·`Intent:` 줄이 없는 커밋 메시지도 커밋 때 경고만 합니다.
+- `Request:`·`Intent:` 줄이 없는 커밋 메시지도 커밋 때 경고만 합니다.
 
 ## 작업 흐름
 
-기능·수정 수준의 구현과 디버깅에는 [`workflow-approach`](harness/skills/workflow-approach/SKILL.md)를 씁니다. 단순 문서 수정이나 이름 변경에는 쓰지 않습니다.
+기능·수정 수준의 구현과 디버깅에는 [`doggy-workflow`](harness/skills/doggy-workflow/SKILL.md)를 씁니다. 단순 문서 수정이나 이름 변경에는 쓰지 않습니다.
 
 1. **Spec**: 메인 에이전트가 이해한 내용과 저장소에 없는 사실에 대한 질문을 제시하고, 사용자가 직접 정할 결정은 선택지와 추천 없이 묻습니다. 그 뒤 `agent-docs/specs/`에 spec을 쓰고 채팅 브리프로 승인받습니다.
-   - 브리프는 질문(되돌리기 어려운 결정), 사용자가 거부할 수 있는 기본값, 새 개념 설명으로 나뉘며 파일로 남기지 않습니다.
+   - 브리프는 코드·변수명 같은 프로젝트 세부는 덜고, 결과물의 형상과 엔지니어로서 책임질 결정(무엇을 골랐고, 무엇을 포기했고, 언제 틀린 선택이 되는지)을 설명합니다. 형상을 바꾸지 않는 기본값은 spec에 남깁니다.
+   - 브리프 끝에는 핵심 trade-off, 결정, 최종 형태를 묻는 퀴즈가 붙습니다. 답이 spec과 다르면 오해인지 의도 불일치인지 가려 설명하거나 spec을 고칩니다. 사용자는 건너뛸 수 있고, 질문과 답은 어디에도 저장하지 않습니다.
+   - spec에는 고려한 대안(`# Alternatives`)과 아직 모르는 것(`# Open Questions`)을 적습니다.
 2. **구현 + 테스트**: `implementer`와 `test-implementer`가 서로의 결과물을 보지 않고 병렬로 작업합니다.
-3. **검증**: `test-verifier`가 증거를 감사하고, 메인 에이전트가 결함을 주입해 테스트가 잡는지 확인합니다. 검증 호출은 실행당 최대 2회입니다.
-4. **보관**: 끝난 spec은 `agent-docs/spec-logs/`로 옮기고, 진행 중인 spec은 남깁니다.
-5. **회고**: 세션을 마칠 때마다 spec의 `# Retrospective`에 넣을 항목(다음 세션이 다시 알아낼 수 없는 관찰, 근거, 재확인 방법) 초안을 사용자에게 보여 주고, 확인받은 뒤 기록합니다.
+3. **검증**: `test-verifier`가 증거를 감사하고, 메인 에이전트가 결함을 주입해 테스트가 잡는지 확인합니다. 검증 호출은 실행당(여러 세션 작업은 step당) 최대 2회입니다.
+4. **보관**: 끝난 spec은 `agent-docs/spec-logs/`로 옮기고, 진행 중인 spec은 남깁니다. 보관된 spec은 수정하지 않습니다.
+5. **마무리 보고**: 세션을 마칠 때마다 실제로 만들어진 형상, 작업 중 내린 결정, 잘못된 시도와 실수를 채팅으로 보고하고 퀴즈로 마칩니다. 회고는 저장하지 않습니다. 저장되는 것은 사용자가 승인한 `facts.md` 항목과 try-n-fail 기록뿐입니다.
+
+한 세션에 끝나지 않는 작업은 spec 하나를 step으로 나눕니다. 검증 obligation이 15개 이상이거나(`.harness/config.json`의 `step_split_obligations`로 변경), 앞부분을 만들어 봐야 뒷부분이 정해지거나, 세션 밖의 일을 기다려야 하거나, 세션이 끝내지 못하고 멈췄을 때 권고합니다. 각 step은 위 2~3을 따로 통과합니다. 이 경우에만 spec에 `# Steps`와 `# Session Memory`(`## Failed Attempts & Reasons`, `## Decisions & Reasons & Alternatives`, `## Unresolved Questions & Uncertainties`)를 두어 다음 세션이 이어받고, 작업이 끝나면 spec과 함께 보관됩니다.
 
 텔레메트리는 `~/.harness/telemetry/`에 JSONL로 기록됩니다.
 
@@ -70,7 +74,8 @@ python3 installer/harness.py doctor <target>
 | 문서 | 위치 | 언제 쓰나 |
 | --- | --- | --- |
 | 주석·docstring | 코드 | 코드로 알 수 없는 설계 제약, 외부 시스템, 보안 불변식, 특이한 구현의 이유만 |
-| try-n-fail | `agent-docs/try-n-fail/` | 실패를 알아내는 데 실제 구현·실행·조사가 든 시도, 또는 사용자가 거절한 구체적 제안을 다음 작업이 반복할 수 있을 때. 초안 확인 후 작성 |
+| 사실 | `agent-docs/facts.md` | 실행 환경, 사용자의 의도와 계획처럼 저장소로는 알 수 없는 사실이 작업 중 드러났을 때. 한 줄에 사실 하나, 출처와 재확인 방법 포함. 사용자가 문구를 승인한 뒤에만 작성하고, 작업 시작 전에 읽음 |
+| try-n-fail | `agent-docs/try-n-fail/` | 실패를 알아내는 데 실제 구현·실행·조사가 든 시도, 또는 사용자가 거절한 구체적 제안을 다음 작업이 반복할 수 있을 때. 초안 확인 후 작성. 먼저 읽어 두지 않고, 접근을 실행하기 직전과 첫 실패 때 `index.md`를 검색해 일치하는 기록만 읽음 |
 | todo | `agent-docs/todos/` | 세션에 묶이지 않은 작업 항목. `#` 제목과 `## Next Step` 필수. 0.33.0 이전 handoff 기록은 갱신 때 동의하면 여기로 이동 |
 | 동기화 주석 | `agent-docs/synced-comments/` | 같은 주석을 여러 곳에 유지할 때. 코드에 `synced id`와 버전을 태그하고 블록 끝에 `synced end: <id>`를 둠 |
 

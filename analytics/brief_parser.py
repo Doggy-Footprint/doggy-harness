@@ -69,6 +69,8 @@ def _classify(title: str) -> str | None:
         return "fact"
     if "decision round" in folded or "결정 라운드" in folded:
         return "decision"
+    if "quiz" in folded or "퀴즈" in folded:
+        return "quiz"
     if "understood" in folded or "understanding" in folded or "이해" in folded:
         return "understanding"
     return None
@@ -107,7 +109,7 @@ def parse_brief_text(text: str) -> dict:
         understanding = content or None
 
     questions = []
-    item_sections = [s for s in sections if s[2] in ("fact", "decision")]
+    item_sections = [s for s in sections if s[2] in ("fact", "decision", "quiz")]
     has_bold = {
         s[:2]: any(_BOLD_ITEM.match(line) for line in lines[s[0] + 1:s[1]])
         for s in item_sections

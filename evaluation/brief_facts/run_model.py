@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 STOP_RULE = (
-    "The user invoked the workflow-approach skill for the request in ARGUMENTS; follow the skill. "
+    "The user invoked the doggy-workflow skill for the request in ARGUMENTS; follow the skill. "
     "This session ends at the first point where the skill makes you wait for the user's reply: "
     "output, as your final answer, the complete message you would send to the user at that point. "
     "Your read-only tools are enough to reach that point. "
@@ -35,8 +35,8 @@ def main() -> int:
 
     case = json.loads(args.case.read_text(encoding="utf-8"))
     prompt = (
-        "<command-message>workflow-approach</command-message>\n"
-        "<command-name>/workflow-approach</command-name>\n"
+        "<command-message>doggy-workflow</command-message>\n"
+        "<command-name>/doggy-workflow</command-name>\n"
         f"<command-args>{case['task']}</command-args>\n\n"
         f"{skill_body(args.skill)}\n\nARGUMENTS: {case['task']}\n"
     )

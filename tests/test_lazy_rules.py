@@ -79,8 +79,8 @@ def base_sections():
     return dict(split_sections(FIXTURE.read_text()))
 
 
-def without_principle_note(body):
-    lines = [line for line in body.split("\n") if line != PRINCIPLE_NOTE]
+def without_second_principle(body):
+    lines = [line for line in body.split("\n") if line != PRINCIPLE_NOTE and not line.startswith("2. **")]
     collapsed = []
     for line in lines:
         if line == "" and collapsed and collapsed[-1] == "":
@@ -127,9 +127,12 @@ class TestBlockSplit(unittest.TestCase):
                 continue
             with self.subTest(section=heading):
                 if heading == "## Principles":
-                    self.assertEqual(body.count(PRINCIPLE_NOTE), 1)
-                    self.assertEqual(without_principle_note(body).rstrip("\n"),
-                                     without_principle_note(base[heading]).rstrip("\n"))
+                    self.assertNotIn(PRINCIPLE_NOTE, body)
+                    second = [line for line in body.split("\n") if line.startswith("2. **")]
+                    self.assertEqual(len(second), 1, second)
+                    self.assertTrue(second[0].startswith("2. **Memory Has a Scope**"), second[0])
+                    self.assertEqual(without_second_principle(body).rstrip("\n"),
+                                     without_second_principle(base[heading]).rstrip("\n"))
                 else:
                     self.assertEqual(body.rstrip("\n"), base[heading].rstrip("\n"))
 
@@ -296,8 +299,8 @@ class TestMigration0410(InstallerTestCase):
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         announced = re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE)
-        self.assertEqual(announced[-1], "0.50.0")
-        self.assertEqual(announced, ["0.41.0", "0.42.0", "0.43.0", "0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1", "0.50.0"])
+        self.assertEqual(announced[-1], "0.51.0")
+        self.assertEqual(announced, ["0.41.0", "0.42.0", "0.43.0", "0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1", "0.50.0", "0.51.0"])
         self.assertIn(f"migration 0.41.0: {S6_LABEL}", result.stdout)
         start = result.stdout.index("migration 0.41.0:")
         positions = []
@@ -306,7 +309,7 @@ class TestMigration0410(InstallerTestCase):
             positions.append(result.stdout.index(line, start))
         self.assertEqual(positions, sorted(positions))
         self.assertEqual((repo / "AGENTS.md").read_bytes(), agents_before)
-        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.50.0")
+        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.51.0")
         for name in MOVED.values():
             self.assertTrue((repo / INSTRUCTIONS / name).is_file(), name)
         block_headings = [h for h, _ in split_sections(read_block(repo))]

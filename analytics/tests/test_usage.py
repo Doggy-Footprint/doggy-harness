@@ -198,6 +198,15 @@ def test_vo2_skill_tool_use(tmp_path):
     assert (req["invoked"], req["invocation"]) == (True, "skill")
 
 
+def test_renamed_skill_counts_as_slash_and_as_skill_tool_use(tmp_path):
+    req = one_turn(tmp_path, prompt="<command-name>/doggy-workflow</command-name> do it")
+    assert (req["invoked"], req["invocation"]) == (True, "slash")
+    req = one_turn(tmp_path, assistant(skill_call("doggy-workflow")))
+    assert (req["invoked"], req["invocation"]) == (True, "skill")
+    req = one_turn(tmp_path, assistant(skill_call("x:doggy-workflow")))
+    assert req["invoked"] is False
+
+
 def test_vo2_other_skill(tmp_path):
     req = one_turn(tmp_path, assistant(skill_call("other-skill")))
     assert (req["invoked"], req["invocation"]) == (False, None)

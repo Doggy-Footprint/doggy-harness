@@ -30,8 +30,7 @@ REQUIRED_HEADINGS = {
 }
 TITLED_DIRS = {PATHS.todos}
 WORKFLOW_DOC_DIRS = {"specs", "spec-logs"}
-FACT_DOC_DIRS = {"facts"}
-RETIRED_DOC_DIRS = {"adr", "rejections", "handoff"}
+RETIRED_DOC_DIRS = {"adr", "rejections", "handoff", "facts"}
 
 
 def rel(path: Path) -> str:
@@ -46,7 +45,7 @@ def iter_docs_root_files():
             continue
         docs_parts = path.relative_to(PATHS.docs_root).parts
         if "stale" in docs_parts or (
-            docs_parts and docs_parts[0] in WORKFLOW_DOC_DIRS | FACT_DOC_DIRS | RETIRED_DOC_DIRS
+            docs_parts and docs_parts[0] in WORKFLOW_DOC_DIRS | RETIRED_DOC_DIRS
         ):
             continue
         if any(part in EXCLUDE_DIRS for part in path.relative_to(REPO_ROOT).parts):

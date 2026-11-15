@@ -25,11 +25,14 @@ SEPARATOR_CHARS = ";&|()"
 # paths from the calling agent usually are not, so resolve() here too or
 # every spec write silently drops on a symlinked worktree (e.g. macOS /tmp).
 SPECS_DIR = PATHS.specs.resolve()
-FACTS_DIR = PATHS.facts.resolve()
-FACT_DIMENSIONS = {"load", "data", "concurrency", "environment", "consumers", "roadmap", "failure", "cost"}
-BRIEF_STAGES = {"understanding", "decision", "approval"}
+FACTS_FILE = PATHS.facts.resolve()
+BRIEF_STAGES = {"understanding", "decision", "approval", "quiz", "closing"}
 BRIEF_SPLITS = {"none", "proposed", "accepted", "declined"}
-BRIEF_COUNT_FLAGS = {"--fact-questions": "fact_questions", "--user-decisions": "user_decisions", "--picks-differ": "picks_differ"}
+BRIEF_QUIZ_OF = {"approval", "closing"}
+BRIEF_COUNT_FLAGS = {
+    "--fact-questions": "fact_questions", "--user-decisions": "user_decisions", "--picks-differ": "picks_differ",
+    "--quiz-questions": "quiz_questions", "--quiz-answered": "quiz_answered", "--quiz-differ": "quiz_differ",
+}
 
 
 def resolve_path(path_str: str) -> Path:
@@ -79,21 +82,14 @@ def apply_patch_paths(tool_input: dict) -> list:
     return paths
 
 
-def fact_fields(name: str) -> dict:
-    fact_id = name[:16] if re.match(r"[0-9a-f]{16}-", name) else None
-    segment = re.match(r"[0-9a-f]{16}-([^-]*)-", name)
-    dimension = segment.group(1) if segment and segment.group(1) in FACT_DIMENSIONS else None
-    return {"fact_id": fact_id, "dimension": dimension}
-
-
 def emit_path_write(payload: dict, path_str) -> None:
     if not path_str:
         return
     path = resolve_path(path_str)
     if path.parent == SPECS_DIR and path.suffix == ".md":
         telemetry.emit(payload, "spec_write", spec=path.stem, version=parse_spec_version(path))
-    elif path.parent == FACTS_DIR and path.suffix == ".md" and path.name not in ("index.md", "stale.md"):
-        telemetry.emit(payload, "fact_write", **fact_fields(path.name))
+    elif path == FACTS_FILE:
+        telemetry.emit(payload, "fact_write")
 
 
 def bash_exit_code(tool_response):
@@ -124,7 +120,7 @@ def parse_brief_args(args: list):
         values[flag] = value
     if not {"--run-id", "--stage", "--round"} <= values.keys():
         return None
-    if not values.keys() <= {"--run-id", "--stage", "--round", "--split", *BRIEF_COUNT_FLAGS}:
+    if not values.keys() <= {"--run-id", "--stage", "--round", "--split", "--quiz-of", *BRIEF_COUNT_FLAGS}:
         return None
     if re.fullmatch(r"[0-9a-f]{16}", values["--run-id"]) is None:
         return None
@@ -147,8 +143,13 @@ def parse_brief_args(args: list):
     if split is not None and split not in BRIEF_SPLITS:
         return None
     fields["split"] = split
+    quiz_of = values.get("--quiz-of")
+    if quiz_of is not None and quiz_of not in BRIEF_QUIZ_OF:
+        return None
+    fields["quiz_of"] = quiz_of
     return {key: fields[key] for key in (
         "workflow_run_id", "spec", "stage", "round", "fact_questions", "user_decisions", "split", "picks_differ",
+        "quiz_of", "quiz_questions", "quiz_answered", "quiz_differ",
     )}
 
 

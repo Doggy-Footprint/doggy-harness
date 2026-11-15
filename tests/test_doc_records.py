@@ -16,10 +16,7 @@ status: active
 # Version Log
 ## v1
 - Initial.
-
-# Retrospective
 """
-RETRO_ROW = "## 2026-10-25\n| observation | evidence | how to re-check |\n| --- | --- | --- |\n| port 8080 is taken by a fixture | bind error in test log | run `lsof -i :8080` |\n"
 
 
 class DocRecordsTestCase(InstallerTestCase):
@@ -105,50 +102,26 @@ class TestCommitStamp(DocRecordsTestCase):
         self.assertEqual([g["matcher"] for g in groups], ["Write|Edit|MultiEdit"])
 
 
-class TestRetrospectiveWarning(DocRecordsTestCase):
-    WARNING = "without a new # Retrospective entry"
+class TestNoRetrospectiveWarning(DocRecordsTestCase):
+    WARNING = "# Retrospective"
 
-    def setup_spec(self):
+    def test_spec_change_commits_without_a_retrospective_warning(self):
         repo, _ = self.installed()
         spec = repo / "agent-docs" / "specs" / SPEC_NAME
         spec.parent.mkdir(parents=True, exist_ok=True)
         spec.write_text(SPEC_TEXT)
         result = self.commit_all(repo)
-        self.assertIn(self.WARNING, result.stderr)
         self.assertEqual(result.returncode, 0, result.stderr)
-        return repo, spec
-
-    def test_spec_change_without_new_row_warns_but_commits(self):
-        repo, spec = self.setup_spec()
+        self.assertNotIn(self.WARNING, result.stderr)
         spec.write_text(SPEC_TEXT.replace("- Initial.", "- Initial.\n- Changed."))
         result = self.commit_all(repo, "change")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn(f"agent-docs/specs/{SPEC_NAME} changed{' ' + self.WARNING}", result.stderr)
-
-    def test_spec_change_with_new_row_does_not_warn(self):
-        repo, spec = self.setup_spec()
-        spec.write_text(SPEC_TEXT + RETRO_ROW)
-        result = self.commit_all(repo, "retro")
-        self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn(self.WARNING, result.stderr)
 
-    def test_archive_rename_compares_against_the_active_spec(self):
-        repo, spec = self.setup_spec()
-        archived = repo / "agent-docs" / "spec-logs" / SPEC_NAME
-        archived.parent.mkdir(parents=True, exist_ok=True)
-        spec.rename(archived)
-        result = self.commit_all(repo, "archive")
-        self.assertIn(f"agent-docs/spec-logs/{SPEC_NAME}", result.stderr)
-        archived.write_text(SPEC_TEXT + RETRO_ROW)
-        result = self.commit_all(repo, "archive retro")
-        self.assertNotIn(self.WARNING, result.stderr)
-
-    def test_other_documents_do_not_warn(self):
+    def test_retrospective_hook_is_not_installed(self):
         repo, _ = self.installed()
-        (repo / "a.txt").write_text("x\n")
-        result = self.commit_all(repo)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertNotIn(self.WARNING, result.stderr)
+        self.assertFalse((repo / ".harness" / "git" / "warn_retrospective.py").exists())
+        self.assertNotIn("warn_retrospective", (repo / ".harness" / "git" / "pre-commit").read_text())
 
 
 class TestRecordRules(DocRecordsTestCase):
@@ -237,7 +210,7 @@ class TestMigration0290(DocRecordsTestCase):
         self.assertIn("keep agent-docs/adr/ untouched", result.stdout)
         self.assertNotIn("agent-docs/rejections/", result.stdout)
         self.assertEqual(record.read_text(), "# X\n")
-        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.50.0")
+        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.51.0")
         block = (repo / ".harness" / "instructions" / "harness-block.md").read_text()
         self.assertNotIn("## Try-n-Fail Rule", block)
         self.assertIn("## Try-n-Fail Rule", (repo / ".harness" / "instructions" / "try-n-fail.md").read_text())
@@ -301,7 +274,7 @@ class RecordRulesTestCase(DocRecordsTestCase):
 
 
 class TestRecordRules(RecordRulesTestCase):
-    def test_facts_directory_needs_no_index_files(self):
+    def test_retired_facts_directory_is_not_checked(self):
         repo, _ = self.installed()
         facts = repo / "agent-docs" / "facts"
         facts.mkdir(parents=True)

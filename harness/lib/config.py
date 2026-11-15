@@ -23,7 +23,7 @@ class Paths:
         self.synced_comments = self.docs_root / "synced-comments"
         self.specs = self.docs_root / "specs"
         self.spec_logs = self.docs_root / "spec-logs"
-        self.facts = self.docs_root / "facts"
+        self.facts = self.docs_root / "facts.md"
 
 
 def load_paths() -> Paths:

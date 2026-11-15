@@ -33,6 +33,10 @@ def decision(value):
     return {"kind": "decision", "text": value}
 
 
+def quiz(value):
+    return {"kind": "quiz", "text": value}
+
+
 def parsed(understanding=None, questions=()):
     return {"understanding": understanding, "questions": list(questions)}
 
@@ -164,6 +168,14 @@ HEADING_CASES = {
         "## Understanding\nbody", parsed("body")),
     "understanding_by_korean_keyword": (
         "## 제가 이해한 내용\nbody", parsed("body")),
+    "quiz_by_quiz": (
+        "## Quiz\n- Q", parsed(None, [quiz("Q")])),
+    "quiz_by_korean_keyword": (
+        "## 퀴즈\n- Q", parsed(None, [quiz("Q")])),
+    "precedence_quiz_over_understanding": (
+        "## 이해 확인 퀴즈\n- Q", parsed(None, [quiz("Q")])),
+    "precedence_decision_over_quiz": (
+        "## Decision round quiz\n- Q", parsed(None, [decision("Q")])),
     "no_class_heading_yields_nothing": (
         "## Notes\n- Q\nbody", parsed(None, [])),
     "precedence_fact_over_understanding": (

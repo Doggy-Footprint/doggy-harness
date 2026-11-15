@@ -16,14 +16,15 @@ from test_telemetry import TelemetryTestCase
 RID = "49bafb302bb6593c"
 REL = ".harness/bin/workflow_marker.py"
 ABS = "/x/repo/.harness/bin/workflow_marker.py"
-SKILL = REPO_ROOT / "harness" / "skills" / "workflow-approach" / "SKILL.md"
+SKILL = REPO_ROOT / "harness" / "skills" / "doggy-workflow" / "SKILL.md"
 VERSION_FILE = REPO_ROOT / "harness" / "VERSION"
 
 ENVELOPE = ["v", "ts", "harness_version", "repo", "client", "session_id", "agent_id",
             "agent_type", "tool_use_id", "event", "workflow_run_id", "spec"]
+QUIZ_KEYS = ("quiz_questions", "quiz_answered", "quiz_differ")
 BRIEF_KEYS = set(ENVELOPE) | {"stage", "round", "fact_questions", "user_decisions", "split",
-                              "picks_differ"}
-FACT_KEYS = set(ENVELOPE) | {"fact_id", "dimension"}
+                              "picks_differ", "quiz_of", *QUIZ_KEYS}
+FACT_KEYS = set(ENVELOPE)
 E10 = ["v", "ts", "harness_version", "repo", "client", "session_id", "agent_id", "agent_type",
        "tool_use_id", "event"]
 SHAPES = {
@@ -37,11 +38,8 @@ SHAPES = {
         "ended_cleanly", "workflow_run_id", "spec"},
 }
 NEW_FIELDS = {"stage", "round", "fact_questions", "user_decisions", "split", "picks_differ",
-              "fact_id", "dimension", "reason"}
-DIMENSIONS = ["load", "data", "concurrency", "environment", "consumers", "roadmap", "failure",
-              "cost"]
-FACT_A = "67ac615b0c9ad3aa-consumers-brief-telemetry-personal-dashboard.md"
-FACT_B = "0123456789abcdef-load-second-topic.md"
+              "quiz_of", *QUIZ_KEYS, "reason"}
+OLD_FACT_NAME = "67ac615b0c9ad3aa-consumers-brief-telemetry-personal-dashboard.md"
 
 
 def brief_command(script=REL, run_id=RID, stage="understanding", rnd="1", tail="", sub="brief"):
@@ -139,6 +137,8 @@ class TestHookDecisionTable(BriefCase):
                 f"{brief_command(stage='approved')} ; {decision2}", [("decision", 2)]),
             "valid occurrence then invalid": (
                 f"{brief_command()} ; {brief_command(stage='approved')}", [("understanding", 1)]),
+            "quiz stage": (brief_command(stage="quiz", rnd="2"), [("quiz", 2)]),
+            "closing stage": (brief_command(stage="closing"), [("closing", 1)]),
         }
         for name, (command, expected) in cases.items():
             with self.subTest(rule=name):
@@ -168,6 +168,12 @@ class TestHookDecisionTable(BriefCase):
             "user decisions duplicated": brief_command(tail="--user-decisions 1 --user-decisions 2"),
             "split duplicated": brief_command(tail="--split none --split none"),
             "picks differ duplicated": brief_command(tail="--picks-differ 0 --picks-differ 0"),
+            "quiz questions duplicated": brief_command(tail="--quiz-questions 2 --quiz-questions 2"),
+            "quiz answered duplicated": brief_command(tail="--quiz-answered 1 --quiz-answered 1"),
+            "quiz differ duplicated": brief_command(tail="--quiz-differ 0 --quiz-differ 0"),
+            "minus sign on a quiz flag": brief_command(tail="--quiz-differ -1"),
+            "bad quiz-of value": brief_command(stage="quiz", tail="--quiz-of decision"),
+            "quiz-of duplicated": brief_command(stage="quiz", tail="--quiz-of closing --quiz-of closing"),
             "bad split value": brief_command(tail="--split maybe"),
             "unbalanced double quote": brief_command(tail='"oops'),
             "unbalanced single quote": brief_command(tail="'oops"),
@@ -267,7 +273,8 @@ class TestBriefBoundaries(BriefCase):
 
     def test_each_count_flag_boundaries(self):
         flag_to_key = {"--fact-questions": "fact_questions", "--user-decisions": "user_decisions",
-                       "--picks-differ": "picks_differ"}
+                       "--picks-differ": "picks_differ", "--quiz-questions": "quiz_questions",
+                       "--quiz-answered": "quiz_answered", "--quiz-differ": "quiz_differ"}
         for flag, key in flag_to_key.items():
             for value, expected in (("-1", None), ("0", 0), ("1", 1)):
                 with self.subTest(flag=flag, value=value):
@@ -293,7 +300,7 @@ class TestBriefBoundaries(BriefCase):
 
     def test_absent_optional_flags_are_present_as_null(self):
         (line,) = self.emitted(brief_command())
-        for key in ("fact_questions", "user_decisions", "split", "picks_differ"):
+        for key in ("fact_questions", "user_decisions", "split", "picks_differ", "quiz_of", *QUIZ_KEYS):
             self.assertIn(key, line)
             self.assertIsNone(line[key])
 
@@ -305,6 +312,26 @@ class TestBriefBoundaries(BriefCase):
              line["split"], line["picks_differ"]),
             ("approval", 3, 2, 3, "accepted", 4),
         )
+
+    def test_quiz_flags_carry_their_values_on_the_stages_that_use_them(self):
+        (asked,) = self.emitted(brief_command(stage="approval", tail="--quiz-questions 3"))
+        self.assertEqual((asked["stage"], asked["quiz_questions"], asked["quiz_answered"], asked["quiz_differ"]),
+                         ("approval", 3, None, None))
+        (handled,) = self.emitted(brief_command(stage="quiz", tail="--quiz-answered 3 --quiz-differ 1"))
+        self.assertEqual((handled["stage"], handled["quiz_questions"], handled["quiz_answered"],
+                          handled["quiz_differ"]), ("quiz", None, 3, 1))
+        (skipped,) = self.emitted(brief_command(stage="quiz", tail="--quiz-answered 0"))
+        self.assertEqual((skipped["quiz_answered"], skipped["quiz_differ"]), (0, None))
+        (closing,) = self.emitted(brief_command(stage="closing", tail="--quiz-questions 2"))
+        self.assertEqual((closing["stage"], closing["quiz_questions"]), ("closing", 2))
+
+    def test_quiz_of_names_the_approval_or_the_closing_quiz(self):
+        for value in ("approval", "closing"):
+            with self.subTest(quiz_of=value):
+                (line,) = self.emitted(brief_command(
+                    stage="quiz", rnd="2", tail=f"--quiz-of {value} --quiz-answered 2 --quiz-differ 1"))
+                self.assertEqual((line["stage"], line["round"], line["quiz_of"], line["quiz_answered"],
+                                  line["quiz_differ"]), ("quiz", 2, value, 2, 1))
 
 
 class TestBriefLineFields(BriefCase):
@@ -459,8 +486,8 @@ class TestAmendReason(BriefCase):
 
 
 class TestFactWrite(BriefCase):
-    def write_fact(self, relative, text="# fact\n"):
-        path = self.repo / "agent-docs" / "facts" / relative
+    def facts_file(self, text="# Facts\n"):
+        path = self.repo / "agent-docs" / "facts.md"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
         return path
@@ -479,93 +506,59 @@ class TestFactWrite(BriefCase):
     def facts(self, payload, forbidden=()):
         return self.fact_lines(self.fire(payload), forbidden)
 
-    def test_patterned_name_with_valid_dimension_records_id_and_dimension(self):
-        (line,) = self.facts(self.write_payload(self.write_fact(FACT_A)),
-                             ["brief-telemetry-personal-dashboard", FACT_A])
+    def test_write_of_the_facts_file_records_one_line_without_content(self):
+        (line,) = self.facts(self.write_payload(self.facts_file("- secret fact text\n")),
+                             ["secret fact text", "facts.md"])
         self.assertEqual(line["event"], "fact_write")
-        self.assertEqual((line["fact_id"], line["dimension"]), ("67ac615b0c9ad3aa", "consumers"))
         self.assertEqual((line["session_id"], line["tool_use_id"]), ("s-fact", "toolu_fact"))
         self.assertEqual(line["v"], 1)
         self.assertIsNone(line["workflow_run_id"])
         self.assertIsNone(line["spec"])
 
-    def test_every_dimension_token_is_recognised(self):
-        for index, dimension in enumerate(DIMENSIONS):
-            with self.subTest(dimension=dimension):
-                name = f"{index:016x}-{dimension}-some-topic.md"
-                (line,) = self.facts(self.write_payload(self.write_fact(name)), ["some-topic", name])
-                self.assertEqual((line["fact_id"], line["dimension"]), (f"{index:016x}", dimension))
+    def test_edit_tool_emits_like_write(self):
+        self.assertEqual(len(self.facts(self.write_payload(self.facts_file(), tool="Edit"))), 1)
 
-    def test_unrecognised_names_still_emit_with_null_fields(self):
-        cases = {
-            "invalid dimension segment": ("67ac615b0c9ad3aa-weather-x.md", "67ac615b0c9ad3aa", None),
-            "no id prefix": ("abc-load-x.md", None, None),
-            "uppercase id": ("67AC615B0C9AD3AA-load-x.md", None, None),
-        }
-        for label, (name, fact_id, dimension) in cases.items():
-            with self.subTest(case=label):
-                (line,) = self.facts(self.write_payload(self.write_fact(name)), [name])
-                self.assertEqual((line["fact_id"], line["dimension"]), (fact_id, dimension))
+    def test_relative_file_path_emits(self):
+        self.facts_file()
+        self.assertEqual(len(self.facts(self.write_payload("agent-docs/facts.md"))), 1)
 
-    def test_non_fact_files_emit_nothing(self):
-        outside = self.repo / "agent-docs" / "todos"
-        outside.mkdir(parents=True, exist_ok=True)
-        (outside / FACT_A).write_text("x")
-        elsewhere = self.repo / "facts"
-        elsewhere.mkdir(exist_ok=True)
-        (elsewhere / FACT_A).write_text("x")
-        sibling = self.repo / "agent-docs" / "factsx"
-        sibling.mkdir(parents=True, exist_ok=True)
-        (sibling / FACT_A).write_text("x")
+    def test_other_files_emit_nothing(self):
+        docs = self.repo / "agent-docs"
+        old_dir = docs / "facts"
+        old_dir.mkdir(parents=True, exist_ok=True)
+        (old_dir / OLD_FACT_NAME).write_text("x")
+        (old_dir / "facts.md").write_text("x")
+        todos = docs / "todos"
+        todos.mkdir(parents=True, exist_ok=True)
+        (todos / "facts.md").write_text("x")
+        (self.repo / "facts.md").write_text("x")
+        (docs / "facts.txt").write_text("x")
+        (docs / "factsx.md").write_text("x")
         cases = {
-            "index.md": self.write_fact("index.md"),
-            "stale.md": self.write_fact("stale.md"),
-            "subdirectory file": self.write_fact("stale/x.md"),
-            "deep subdirectory file": self.write_fact("stale/deeper/" + FACT_A),
-            "non-md file": self.write_fact("notes.txt"),
-            "non-md with fact name": self.write_fact(FACT_A.replace(".md", ".txt")),
-            "different docs directory": outside / FACT_A,
-            "repo-level facts directory": elsewhere / FACT_A,
-            "sibling directory prefix": sibling / FACT_A,
+            "file in the retired facts directory": old_dir / OLD_FACT_NAME,
+            "facts.md inside the retired directory": old_dir / "facts.md",
+            "facts.md in another docs directory": todos / "facts.md",
+            "repo-level facts.md": self.repo / "facts.md",
+            "non-md facts file": docs / "facts.txt",
+            "sibling name prefix": docs / "factsx.md",
         }
         for label, path in cases.items():
             for tool in ("Write", "Edit"):
                 with self.subTest(case=label, tool=tool):
                     self.assertEqual(self.facts(self.write_payload(path, tool)), [])
 
-    def test_edit_tool_emits_like_write(self):
-        (line,) = self.facts(self.write_payload(self.write_fact(FACT_A), tool="Edit"))
-        self.assertEqual((line["fact_id"], line["dimension"]), ("67ac615b0c9ad3aa", "consumers"))
-
-    def test_relative_file_path_emits(self):
-        self.write_fact(FACT_A)
-        payload = self.write_payload(f"agent-docs/facts/{FACT_A}")
-        (line,) = self.facts(payload)
-        self.assertEqual((line["fact_id"], line["dimension"]), ("67ac615b0c9ad3aa", "consumers"))
-
-    def test_apply_patch_of_two_fact_files_emits_two_lines_in_order(self):
-        self.write_fact(FACT_A)
-        self.write_fact(FACT_B)
-        payload = self.patch_payload(("Add", f"agent-docs/facts/{FACT_A}"),
-                                     ("Update", f"agent-docs/facts/{FACT_B}"))
-        lines = self.facts(payload, [FACT_A, FACT_B])
-        self.assertEqual([(l["fact_id"], l["dimension"]) for l in lines],
-                         [("67ac615b0c9ad3aa", "consumers"), ("0123456789abcdef", "load")])
-
-    def test_apply_patch_skips_non_fact_paths_but_keeps_fact_paths(self):
-        self.write_fact(FACT_A)
-        self.write_fact("index.md")
-        payload = self.patch_payload(("Update", "agent-docs/facts/index.md"),
-                                     ("Add", f"agent-docs/facts/{FACT_A}"),
-                                     ("Add", "agent-docs/facts/stale/x.md"))
-        lines = self.facts(payload)
-        self.assertEqual([l["fact_id"] for l in lines], ["67ac615b0c9ad3aa"])
+    def test_apply_patch_emits_once_per_listed_facts_file_path(self):
+        self.facts_file()
+        payload = self.patch_payload(("Update", "agent-docs/todos/index.md"),
+                                     ("Update", "agent-docs/facts.md"),
+                                     ("Add", f"agent-docs/facts/{OLD_FACT_NAME}"))
+        self.assertEqual(len(self.facts(payload)), 1)
 
     def test_active_workflow_identity_is_recorded_like_spec_write(self):
         telemetry_dir = self.temp_dir()
         env = self.telemetry_env(telemetry_dir)
         self.marker("start", "--run-id", "run-fact", "--spec", "orders", "--spec-version", "1", env=env)
-        payload = self.write_payload(self.write_fact(FACT_A))
+        payload = self.write_payload(self.facts_file())
         self.fire(payload, telemetry_dir=telemetry_dir, env=env)
         (line,) = self.fact_lines(telemetry_dir)
         self.assertEqual((line["workflow_run_id"], line["spec"]), ("run-fact", "orders"))
@@ -575,21 +568,22 @@ class TestLineConfidentiality(BriefCase):
     def test_brief_and_fact_lines_carry_only_enumerated_keys_and_no_free_text(self):
         command = brief_command(
             stage="approval", rnd="2",
-            tail="--fact-questions 2 --user-decisions 3 --split proposed --picks-differ 1")
+            tail="--fact-questions 2 --user-decisions 3 --split proposed --picks-differ 1 --quiz-questions 3")
         telemetry_dir = self.fire(bash_payload(command))
         for line in self.briefs(telemetry_dir, command):
             self.assertEqual(set(line), BRIEF_KEYS)
             self.assertNotIn("brief --run-id", json.dumps(line))
 
-        path = self.repo / "agent-docs" / "facts" / FACT_A
+        path = self.repo / "agent-docs" / "facts.md"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("secret body text")
         payload = {"hook_event_name": "PostToolUse", "tool_name": "Write",
                    "tool_input": {"file_path": str(path), "content": "secret body text"},
                    "tool_response": {}, "session_id": "s", "tool_use_id": "t"}
         fact_dir = self.fire(payload)
-        for line in self.fact_lines(fact_dir, [FACT_A, "personal-dashboard", "secret body text",
-                                               "agent-docs/facts"]):
+        lines = self.fact_lines(fact_dir, ["secret body text", "agent-docs/facts"])
+        self.assertEqual(len(lines), 1)
+        for line in lines:
             self.assertEqual(set(line), FACT_KEYS)
 
 
@@ -726,10 +720,10 @@ class TestSkillText(unittest.TestCase):
         cls.text = SKILL.read_text()
         cls.flat = re.sub(r"\s+", " ", cls.text)
 
-    def test_k1_brief_command_line_with_three_stages_and_round(self):
+    def test_k1_brief_command_line_with_five_stages_and_round(self):
         self.assertIn(
             "python3 .harness/bin/workflow_marker.py brief --run-id ID "
-            "--stage understanding|decision|approval --round N", self.flat)
+            "--stage understanding|decision|approval|quiz|closing --round N", self.flat)
 
     def test_k2_same_turn_emission_for_each_brief_stage(self):
         windows = [self.flat[max(0, m.start() - 300): m.end() + 300].lower()
@@ -805,10 +799,21 @@ class TestSkillText(unittest.TestCase):
             r"approval brief", r"decisions?", r"choice[^.;]{0,30}differ\w*[^.;]{0,30}picks file"],
             before=80)
 
+    def test_k11_closing_report_emits_a_closing_stage_brief_in_the_same_turn(self):
+        self.assertRegex(self.flat, r"stage `closing` in the same turn as each closing report")
+
+    def test_k12_quiz_flags_state_what_they_count(self):
+        self.assert_flag_meaning("--quiz-questions", [r"quiz questions", r"that message asks"], before=80)
+        self.assert_flag_meaning("--quiz-answered", [r"user answered", r"0 when the user skipped"])
+        self.assert_flag_meaning("--quiz-differ", [r"answers differed", r"expected answers written beforehand"])
+        self.assert_flag_meaning("--quiz-of", [r"`approval` or `closing`", r"the message that asked the quiz"])
+        self.assertRegex(self.flat, r"after an approval brief and after a closing report alike")
+        self.assertRegex(self.flat, r"emits the `quiz` telemetry marker with `--quiz-of closing`")
+
 
 class TestVersionAndMigration(BriefCase):
-    def test_version_file_is_0_50_0(self):
-        self.assertEqual(VERSION_FILE.read_text().strip(), "0.50.0")
+    def test_version_file_is_0_51_0(self):
+        self.assertEqual(VERSION_FILE.read_text().strip(), "0.51.0")
 
     def test_dry_run_from_0_48_0_announces_the_0_49_0_migration_and_later_ones(self):
         manifest_path = self.repo / ".harness" / "manifest.json"
@@ -821,7 +826,7 @@ class TestVersionAndMigration(BriefCase):
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE),
-                         ["0.49.0", "0.49.1", "0.50.0"], result.stdout)
+                         ["0.49.0", "0.49.1", "0.50.0", "0.51.0"], result.stdout)
         self.assertRegex(result.stdout, r"(?m)^migration 0\.49\.0: \S")
         section = re.split(r"\n(?=migration \d|Apply migration)",
                            result.stdout.split("migration 0.49.0:", 1)[1])[0].lower()

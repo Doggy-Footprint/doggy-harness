@@ -205,7 +205,7 @@ class WorkflowMarkerTestCase(InstallerTestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         event = self.events(telemetry_dir, repo)[0]
         self.assertEqual(event["v"], 1)
-        self.assertEqual(event["harness_version"], "0.50.0")
+        self.assertEqual(event["harness_version"], "0.51.0")
         self.assertEqual(event["repo"], str(repo.resolve()))
         timestamp = datetime.fromisoformat(event["ts"].replace("Z", "+00:00"))
         self.assertEqual(timestamp.utcoffset(), timedelta(0))
@@ -276,7 +276,7 @@ class WorkflowMarkerTestCase(InstallerTestCase):
 
     def test_m4_installed_skill_requires_all_semantic_transitions_and_best_effort(self):
         repo = self.install()
-        skill = (repo / ".agents" / "skills" / "workflow-approach" / "SKILL.md").read_text().lower()
+        skill = (repo / ".agents" / "skills" / "doggy-workflow" / "SKILL.md").read_text().lower()
 
         self.assertIn("workflow_marker.py", skill)
         self.assertIn(" start", skill)
@@ -704,7 +704,7 @@ class WorkflowMarkerTestCase(InstallerTestCase):
         user_file = repo / "user-owned.txt"
         user_file.write_text("keep me\n")
         marker_path = repo / ".harness" / "bin" / "workflow_marker.py"
-        skill_path = repo / ".agents" / "skills" / "workflow-approach" / "SKILL.md"
+        skill_path = repo / ".agents" / "skills" / "doggy-workflow" / "SKILL.md"
         marker_path.unlink()
         skill_path.unlink()
 
@@ -715,7 +715,7 @@ class WorkflowMarkerTestCase(InstallerTestCase):
         self.assertTrue(marker_path.is_file())
         skill = skill_path.read_text()
         self.assertIn("workflow_marker.py", skill)
-        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.50.0")
+        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.51.0")
         self.assertEqual(user_file.read_text(), "keep me\n")
 
     def test_m10_repositories_keep_active_runs_and_telemetry_isolated(self):

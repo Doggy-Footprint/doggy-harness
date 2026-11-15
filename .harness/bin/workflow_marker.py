@@ -43,12 +43,16 @@ def _parser() -> argparse.ArgumentParser:
     # line, because this process has no session id or tool_use_id.
     brief = commands.add_parser("brief", add_help=False)
     brief.add_argument("--run-id", required=True)
-    brief.add_argument("--stage", required=True, choices=("understanding", "decision", "approval"))
+    brief.add_argument("--stage", required=True, choices=("understanding", "decision", "approval", "quiz", "closing"))
     brief.add_argument("--round", required=True, type=_non_negative)
     brief.add_argument("--fact-questions", type=_non_negative)
     brief.add_argument("--user-decisions", type=_non_negative)
     brief.add_argument("--split", choices=("none", "proposed", "accepted", "declined"))
     brief.add_argument("--picks-differ", type=_non_negative)
+    brief.add_argument("--quiz-of", choices=("approval", "closing"))
+    brief.add_argument("--quiz-questions", type=_non_negative)
+    brief.add_argument("--quiz-answered", type=_non_negative)
+    brief.add_argument("--quiz-differ", type=_non_negative)
 
     verifier = commands.add_parser("verifier", add_help=False)
     verifier.add_argument("--run-id", required=True)
