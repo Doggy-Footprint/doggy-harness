@@ -10,7 +10,8 @@ from analytics.app import create_app
 
 PRICES = ("models:\n  known-model:\n    input: 1\n    output: 1\n    cache_read: 1\n"
           "    cache_write_5m: 1\n    cache_write_1h: 1\n")
-QUIZ_NULLS = {"quiz_of": None, "quiz_questions": None, "quiz_answered": None, "quiz_differ": None}
+QUIZ_NULLS = {"quiz_of": None, "quiz_questions": None, "quiz_answered": None, "quiz_differ": None,
+              "completion_invalid": None, "completion_differ": None}
 BRIEF_ENTRY_KEYS = {"stage", "round", "fact_questions", "user_decisions", "split", "picks_differ",
                     *QUIZ_NULLS, "ts", "session_id", "tool_use_id", "parsed"}
 REASONS = ("intent_mismatch", "brief_change", "contract_change", "correction")

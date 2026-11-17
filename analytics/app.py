@@ -213,7 +213,8 @@ def _workflow_entry(run_id, events, sessions, sessions_by_key, prices):
 
 _AMEND_REASONS = ("intent_mismatch", "brief_change", "contract_change", "correction")
 _BRIEF_FIELDS = ("stage", "round", "fact_questions", "user_decisions", "split", "picks_differ",
-                 "quiz_of", "quiz_questions", "quiz_answered", "quiz_differ", "ts", "session_id", "tool_use_id")
+                 "quiz_of", "quiz_questions", "quiz_answered", "quiz_differ", "completion_invalid", "completion_differ",
+                 "ts", "session_id", "tool_use_id")
 
 
 def _briefs(events):

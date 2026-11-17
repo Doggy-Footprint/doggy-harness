@@ -4,7 +4,7 @@
 
 ## Principles
 1. **Code is the Ground Truth**: Document only non-obvious rationale, behaviors, and constraints that cannot be inferred from the code.
-2. **Memory Has a Scope**: What crosses sessions lives in three places. `agent-docs/facts.md` holds what the repository cannot show (the execution environment, the user's intent and plans): read it before a task; add, change, or remove an entry only after the user approves its exact text; write one bullet per fact, `- <a sentence true or false whatever gets built> — source: <who>, <YYYY-MM-DD>; re-check: <how>`, and no decisions, instructions, or task state. `agent-docs/try-n-fail/` holds failed approaches and rejected proposals: it is not opening reading; search its `index.md` right before carrying out an approach and at the first failure, and open only the matching records. A task that spans sessions keeps its state in its own spec, where it ends with the task. A retrospective is reported to the user, not saved.
+2. **Memory Has a Scope**: What crosses sessions lives in three places. `agent-docs/facts.md` holds what the repository cannot show (the execution environment, the user's intent and plans): read it before a task; add, change, or remove an entry only after the user approves its exact text, asked about that entry on its own; write one bullet per fact, `- <a sentence true or false whatever gets built> — source: <who>, <YYYY-MM-DD>; re-check: <how>`, and no decisions, instructions, or task state. `agent-docs/try-n-fail/` holds failed approaches and rejected proposals: it is not opening reading; search its `index.md` right before carrying out an approach and at the first failure, and open only the matching records. A task that spans sessions keeps its state in its own spec, where it ends with the task. A retrospective is reported to the user, not saved.
 3. **Record Observations, Not Mandates**: Records carried across sessions state what was observed, its evidence, and how to re-check it. They do not bind a later session to an earlier session's choices; a later session re-checks and decides for itself.
 
 ### Comment Enforcement
@@ -51,8 +51,7 @@ Summaries, briefs, and reports must be readable without opening another file. Do
 
 ## Editing Skills and Prompts
 
-Before changing a skill, prompt, or agent instruction, recommend the `/skill-creator:skill-creator` skill to the user. Since the skill is heavy,
-invoke it only after the user agrees. If it is not installed, tell the user it comes from Anthropic's official plugin marketplace and that the agent will look up the current install steps there.
+Before changing a skill, prompt, or agent instruction, recommend the `/skill-creator:skill-creator` skill to the user. Invoke it only after the user agrees. If it is not installed, tell the user it comes from Anthropic's official plugin marketplace and that the agent will look up the current install steps there.
 
 ## Commit & PR Messages
 

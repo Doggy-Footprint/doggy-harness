@@ -364,7 +364,7 @@ class LabelSetupTests(RepoTestCase):
         r = self.run_installer("install", str(repo))
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         calls = self.gh_calls()
-        self.assertEqual(len(calls), 2, calls)
+        self.assertEqual(len(calls), 4, calls)
         for call in calls:
             cwd, prompt_disabled, _ = call.split("|", 2)
             self.assertEqual(cwd, str(repo.resolve()))
@@ -374,14 +374,21 @@ class LabelSetupTests(RepoTestCase):
             calls[1].split("|", 2)[2],
             "label create comments-approved --color 0E8A16 --description New comments and docstrings reviewed",
         )
+        self.assertEqual(calls[2].split("|", 2)[2], "api repos/{owner}/{repo}/labels/facts-approved")
+        self.assertEqual(
+            calls[3].split("|", 2)[2],
+            "label create facts-approved --color 1D76DB --description facts.md changes approved by the user",
+        )
         self.assertIn("- GitHub label comments-approved\n", self.section(r.stdout, "write") + "\n")
+        self.assertIn("- GitHub label facts-approved\n", self.section(r.stdout, "write") + "\n")
         self.assertNotIn("comments-approved", self.section(r.stdout, "manual review"))
 
     def test_existing_label_is_not_recreated(self):
         repo = self.remote_repo()
         r = self.run_installer("install", str(repo), FAKE_GH_API_EXIT="0")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertEqual([c.split("|", 2)[2].split()[0] for c in self.gh_calls()], ["api"])
+        self.assertEqual([c.split("|", 2)[2].split()[0] for c in self.gh_calls()], ["api", "api"])
+        self.assertIn("GitHub label facts-approved already exists", self.section(r.stdout, "skip"))
         self.assertIn("GitHub label comments-approved already exists", self.section(r.stdout, "skip"))
         self.assertNotIn("comments-approved", self.section(r.stdout, "write"))
 
@@ -435,7 +442,7 @@ class LabelSetupTests(RepoTestCase):
         mp.write_text(json.dumps(manifest, indent=2) + "\n")
         r = self.run_installer("update", str(repo), input="y\n" * 24)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertEqual(re.findall(r"^migration (\S+):", r.stdout, re.MULTILINE), ["0.26.0", "0.27.0", "0.28.0", "0.29.0", "0.30.0", "0.31.0", "0.32.0", "0.33.0", "0.34.0", "0.34.1", "0.34.2", "0.34.3", "0.34.4", "0.35.0", "0.36.0", "0.37.0", "0.38.0", "0.39.0", "0.40.0", "0.41.0", "0.42.0", "0.43.0", "0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1", "0.50.0", "0.51.0"])
+        self.assertEqual(re.findall(r"^migration (\S+):", r.stdout, re.MULTILINE), ["0.26.0", "0.27.0", "0.28.0", "0.29.0", "0.30.0", "0.31.0", "0.32.0", "0.33.0", "0.34.0", "0.34.1", "0.34.2", "0.34.3", "0.34.4", "0.35.0", "0.36.0", "0.37.0", "0.38.0", "0.39.0", "0.40.0", "0.41.0", "0.42.0", "0.43.0", "0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1", "0.50.0", "0.51.0", "0.52.0"])
         section = r.stdout.split("migration 0.26.0", 1)[1].split("Apply migration", 1)[0]
         self.assertIn("comments-approved", section)
         self.assertEqual([c.split("|", 2)[2].split()[:2] for c in self.gh_calls()], [["api", "repos/{owner}/{repo}/labels/comments-approved"], ["label", "create"]])

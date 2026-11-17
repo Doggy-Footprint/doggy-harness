@@ -75,10 +75,14 @@ REMOVED_PROGRESS_GITIGNORE_LINES = (
 COMMENT_APPROVAL_LABEL = "comments-approved"
 COMMENT_APPROVAL_LABEL_COLOR = "0E8A16"
 COMMENT_APPROVAL_LABEL_DESCRIPTION = "New comments and docstrings reviewed"
-COMMENT_APPROVAL_LABEL_COMMAND = (
-    f"gh label create {COMMENT_APPROVAL_LABEL} --color {COMMENT_APPROVAL_LABEL_COLOR} "
-    f'--description "{COMMENT_APPROVAL_LABEL_DESCRIPTION}"'
+FACTS_APPROVAL_LABEL = "facts-approved"
+FACTS_APPROVAL_LABEL_COLOR = "1D76DB"
+FACTS_APPROVAL_LABEL_DESCRIPTION = "facts.md changes approved by the user"
+APPROVAL_LABELS = (
+    (COMMENT_APPROVAL_LABEL, COMMENT_APPROVAL_LABEL_COLOR, COMMENT_APPROVAL_LABEL_DESCRIPTION),
+    (FACTS_APPROVAL_LABEL, FACTS_APPROVAL_LABEL_COLOR, FACTS_APPROVAL_LABEL_DESCRIPTION),
 )
+CI_WORKFLOWS = ("harness-comment-warning.yml", "harness-facts-approval.yml")
 
 
 class MigrationConflict(Exception):
@@ -487,6 +491,17 @@ def migrate_test_audit_language_files(target: Path, dry_run: bool) -> list[str]:
         "add per-language review files under .agents/skills/test-audit/languages/; "
         "test-audit reads only the files for languages found by the scan",
         "the test-audit Flag review table keeps only language-independent false positives; no existing project files change",
+    ]
+
+
+def migrate_facts_gate(target: Path, dry_run: bool) -> list[str]:
+    return [
+        f"add .github/workflows/harness-facts-approval.yml (unless --no-ci): a pull request that changes facts.md fails, "
+        f"printing the added and removed lines, until it carries the `{FACTS_APPROVAL_LABEL}` label; a new push removes the label",
+        f"install and update create the `{FACTS_APPROVAL_LABEL}` GitHub label with gh; "
+        "mark the Facts approval gate check required in branch protection yourself",
+        "doggy-workflow asks for each facts.md entry on its own, and writes completion questions into new specs; "
+        "existing specs are not changed",
     ]
 
 
@@ -1319,6 +1334,11 @@ MIGRATIONS = (
         "rename workflow-approach to doggy-workflow; single facts.md; quiz brief, closing report, and stepped specs",
         migrate_doggy_workflow,
     ),
+    (
+        parse_version("0.52.0"),
+        "facts approval gate on pull requests; facts entries approved one at a time; completion questions",
+        migrate_facts_gate,
+    ),
 )
 
 
@@ -1577,8 +1597,8 @@ def render_owned_files(no_ci: bool, agent_model: str = DEFAULT_AGENT_MODEL) -> d
             owned[rel] = path.read_bytes()
 
     if not no_ci:
-        ci_src = SOURCE_HARNESS / "ci" / "harness-comment-warning.yml"
-        owned[".github/workflows/harness-comment-warning.yml"] = ci_src.read_bytes()
+        for workflow in CI_WORKFLOWS:
+            owned[f".github/workflows/{workflow}"] = (SOURCE_HARNESS / "ci" / workflow).read_bytes()
 
     return owned
 
@@ -1921,9 +1941,14 @@ def ensure_git_hooks(target: Path, dry_run: bool, report: dict):
 
 
 def ensure_comment_approval_label(target: Path, dry_run: bool, report: dict):
-    manual = f"create the `{COMMENT_APPROVAL_LABEL}` GitHub label: `{COMMENT_APPROVAL_LABEL_COMMAND}`"
+    for name, color, description in APPROVAL_LABELS:
+        ensure_approval_label(target, dry_run, report, name, color, description)
+
+
+def ensure_approval_label(target: Path, dry_run: bool, report: dict, name: str, color: str, description: str):
+    manual = f'create the `{name}` GitHub label: `gh label create {name} --color {color} --description "{description}"`'
     if dry_run:
-        report["write"].append(f"GitHub label {COMMENT_APPROVAL_LABEL} (if missing)")
+        report["write"].append(f"GitHub label {name} (if missing)")
         return
     gh = shutil.which("gh")
     if gh is None:
@@ -1941,14 +1966,10 @@ def ensure_comment_approval_label(target: Path, dry_run: bool, report: dict):
         )
 
     try:
-        if run_gh(["api", f"repos/{{owner}}/{{repo}}/labels/{COMMENT_APPROVAL_LABEL}"]).returncode == 0:
-            report["skip"].append(f"GitHub label {COMMENT_APPROVAL_LABEL} already exists")
+        if run_gh(["api", f"repos/{{owner}}/{{repo}}/labels/{name}"]).returncode == 0:
+            report["skip"].append(f"GitHub label {name} already exists")
             return
-        created = run_gh([
-            "label", "create", COMMENT_APPROVAL_LABEL,
-            "--color", COMMENT_APPROVAL_LABEL_COLOR,
-            "--description", COMMENT_APPROVAL_LABEL_DESCRIPTION,
-        ])
+        created = run_gh(["label", "create", name, "--color", color, "--description", description])
     except (OSError, subprocess.TimeoutExpired) as error:
         report["manual review"].append(f"gh failed ({error}); {manual}")
         return
@@ -1956,7 +1977,7 @@ def ensure_comment_approval_label(target: Path, dry_run: bool, report: dict):
         reason = (created.stderr.strip() or created.stdout.strip() or f"exit {created.returncode}").splitlines()[0]
         report["manual review"].append(f"gh label create failed ({reason}); {manual}")
         return
-    report["write"].append(f"GitHub label {COMMENT_APPROVAL_LABEL}")
+    report["write"].append(f"GitHub label {name}")
 
 
 def collect_info_items(target: Path, report: dict):
