@@ -12,6 +12,7 @@
     ".harness/bin/spec_lifecycle.py": "7f70c76cfd146eeb8a43e7b8efdbce232855fe0b03c2e6512b003fb0a1c230b7",
     ".harness/bin/records.py": "a74539f5802231ad426e11d2b0675622f7a4b832b2b67ff70f4afd68211805c8",
     ".harness/bin/seed.py": "9b8c38b4a73969f03c8daa7cdccb849d0f7d6a43824dafc95843af5a865b5217",
+    ".harness/ci/harness-ruleset.json": "072f37c5c845ee803b1c3afbe2c88b41199cd63a56a78391a878378137c63026",
     ".harness/ci/harness-comment-warning.yml": "be0bb60cbfcb8e3eb7b16241f21fab8f3c763b8fcc1dfc57d434331523364e8a",
     ".harness/ci/harness-facts-approval.yml": "7fcb62124f4d9c8751887cb8c4c54904e6907b8ff1f6769a850f555c1bc7a756",
     ".harness/agents/code-explorer.md": "7954c2ba04bbc5b3a63313c02a99e5ec5b35160785e266cfb715a9d9fc909d24",

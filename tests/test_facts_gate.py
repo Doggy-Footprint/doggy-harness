@@ -325,9 +325,10 @@ class InstallTests(FactsCheckCase):
         result = subprocess.run([sys.executable, str(INSTALLER), "update", str(repo), "--no-commit"],
                                 input="y\n" * 4, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        section = result.stdout.split("migration 0.52.0", 1)[1]
+        section = result.stdout.split("migration 0.52.0", 1)[1].split("Apply migration", 1)[0]
         self.assertIn(LABEL, section)
-        self.assertIn("branch protection", section)
+        self.assertIn("ruleset", section)
+        self.assertIn("no bypass", section)
 
 
 if __name__ == "__main__":

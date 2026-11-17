@@ -364,7 +364,7 @@ class LabelSetupTests(RepoTestCase):
         r = self.run_installer("install", str(repo))
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         calls = self.gh_calls()
-        self.assertEqual(len(calls), 4, calls)
+        self.assertEqual(len(calls), 5, calls)
         for call in calls:
             cwd, prompt_disabled, _ = call.split("|", 2)
             self.assertEqual(cwd, str(repo.resolve()))
@@ -381,13 +381,14 @@ class LabelSetupTests(RepoTestCase):
         )
         self.assertIn("- GitHub label comments-approved\n", self.section(r.stdout, "write") + "\n")
         self.assertIn("- GitHub label facts-approved\n", self.section(r.stdout, "write") + "\n")
+        self.assertEqual(calls[4].split("|", 2)[2], "api repos/{owner}/{repo}/rulesets")
         self.assertNotIn("comments-approved", self.section(r.stdout, "manual review"))
 
     def test_existing_label_is_not_recreated(self):
         repo = self.remote_repo()
         r = self.run_installer("install", str(repo), FAKE_GH_API_EXIT="0")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertEqual([c.split("|", 2)[2].split()[0] for c in self.gh_calls()], ["api", "api"])
+        self.assertEqual([c.split("|", 2)[2].split()[0] for c in self.gh_calls()], ["api", "api", "api"])
         self.assertIn("GitHub label facts-approved already exists", self.section(r.stdout, "skip"))
         self.assertIn("GitHub label comments-approved already exists", self.section(r.stdout, "skip"))
         self.assertNotIn("comments-approved", self.section(r.stdout, "write"))
