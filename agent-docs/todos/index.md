@@ -22,3 +22,8 @@ File: c9b24d7c9344d59c-brief-dialogue-eval-facts-md.md
 Summary: evaluation/brief_facts dialogue grading still assumes one file per fact under agent-docs/facts/ found by grep; align seeding and fact criteria with facts.md and re-measure the 0.51.0 skill; not started
 Related Files: evaluation/brief_facts/run_dialogue.py, evaluation/brief_facts/grade_dialogue.py, evaluation/brief_facts/dialogue_grader.md, evaluation/brief_facts/README.md, evaluation/brief_facts/cases/mail-backfill-facts.json, harness/skills/doggy-workflow/SKILL.md
 Related Symbols: copy_written, file_checks, FACT_NAME, FACT_KEYS
+---
+File: 44ec20b03e6a0185-defect-correction-telemetry.md
+Summary: Telemetry should record errors corrected by test-verifier findings (test vs implementation defect) and by mutations; marker design and the meaning of mutation-corrected not decided; not started
+Related Files: harness/bin/workflow_marker.py, harness/lib/telemetry.py, harness/skills/doggy-workflow/SKILL.md, analytics/importer.py
+Related Symbols: verifier_result, verification_result, workflow_phase

@@ -21,7 +21,7 @@ VERSION_FILE = REPO_ROOT / "harness" / "VERSION"
 
 ENVELOPE = ["v", "ts", "harness_version", "repo", "client", "session_id", "agent_id",
             "agent_type", "tool_use_id", "event", "workflow_run_id", "spec"]
-QUIZ_KEYS = ("quiz_questions", "quiz_answered", "quiz_differ")
+QUIZ_KEYS = ("quiz_questions", "quiz_answered", "quiz_differ", "completion_invalid", "completion_differ")
 BRIEF_KEYS = set(ENVELOPE) | {"stage", "round", "fact_questions", "user_decisions", "split",
                               "picks_differ", "quiz_of", *QUIZ_KEYS}
 FACT_KEYS = set(ENVELOPE)
@@ -274,7 +274,8 @@ class TestBriefBoundaries(BriefCase):
     def test_each_count_flag_boundaries(self):
         flag_to_key = {"--fact-questions": "fact_questions", "--user-decisions": "user_decisions",
                        "--picks-differ": "picks_differ", "--quiz-questions": "quiz_questions",
-                       "--quiz-answered": "quiz_answered", "--quiz-differ": "quiz_differ"}
+                       "--quiz-answered": "quiz_answered", "--quiz-differ": "quiz_differ",
+                       "--completion-invalid": "completion_invalid", "--completion-differ": "completion_differ"}
         for flag, key in flag_to_key.items():
             for value, expected in (("-1", None), ("0", 0), ("1", 1)):
                 with self.subTest(flag=flag, value=value):
@@ -324,6 +325,10 @@ class TestBriefBoundaries(BriefCase):
         self.assertEqual((skipped["quiz_answered"], skipped["quiz_differ"]), (0, None))
         (closing,) = self.emitted(brief_command(stage="closing", tail="--quiz-questions 2"))
         self.assertEqual((closing["stage"], closing["quiz_questions"]), ("closing", 2))
+        (checked,) = self.emitted(brief_command(
+            stage="closing", tail="--quiz-questions 3 --completion-invalid 1 --completion-differ 2"))
+        self.assertEqual((checked["quiz_questions"], checked["completion_invalid"], checked["completion_differ"]),
+                         (3, 1, 2))
 
     def test_quiz_of_names_the_approval_or_the_closing_quiz(self):
         for value in ("approval", "closing"):
@@ -807,13 +812,15 @@ class TestSkillText(unittest.TestCase):
         self.assert_flag_meaning("--quiz-answered", [r"user answered", r"0 when the user skipped"])
         self.assert_flag_meaning("--quiz-differ", [r"answers differed", r"expected answers written beforehand"])
         self.assert_flag_meaning("--quiz-of", [r"`approval` or `closing`", r"the message that asked the quiz"])
+        self.assert_flag_meaning("--completion-invalid", [r"completion questions judged invalid"])
+        self.assert_flag_meaning("--completion-differ", [r"differed from the expected answer", r"0 when the check was skipped"])
         self.assertRegex(self.flat, r"after an approval brief and after a closing report alike")
         self.assertRegex(self.flat, r"emits the `quiz` telemetry marker with `--quiz-of closing`")
 
 
 class TestVersionAndMigration(BriefCase):
-    def test_version_file_is_0_51_0(self):
-        self.assertEqual(VERSION_FILE.read_text().strip(), "0.51.0")
+    def test_version_file_is_0_52_0(self):
+        self.assertEqual(VERSION_FILE.read_text().strip(), "0.52.0")
 
     def test_dry_run_from_0_48_0_announces_the_0_49_0_migration_and_later_ones(self):
         manifest_path = self.repo / ".harness" / "manifest.json"
@@ -826,7 +833,7 @@ class TestVersionAndMigration(BriefCase):
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE),
-                         ["0.49.0", "0.49.1", "0.50.0", "0.51.0"], result.stdout)
+                         ["0.49.0", "0.49.1", "0.50.0", "0.51.0", "0.52.0"], result.stdout)
         self.assertRegex(result.stdout, r"(?m)^migration 0\.49\.0: \S")
         section = re.split(r"\n(?=migration \d|Apply migration)",
                            result.stdout.split("migration 0.49.0:", 1)[1])[0].lower()

@@ -75,9 +75,18 @@ REMOVED_PROGRESS_GITIGNORE_LINES = (
 COMMENT_APPROVAL_LABEL = "comments-approved"
 COMMENT_APPROVAL_LABEL_COLOR = "0E8A16"
 COMMENT_APPROVAL_LABEL_DESCRIPTION = "New comments and docstrings reviewed"
-COMMENT_APPROVAL_LABEL_COMMAND = (
-    f"gh label create {COMMENT_APPROVAL_LABEL} --color {COMMENT_APPROVAL_LABEL_COLOR} "
-    f'--description "{COMMENT_APPROVAL_LABEL_DESCRIPTION}"'
+FACTS_APPROVAL_LABEL = "facts-approved"
+FACTS_APPROVAL_LABEL_COLOR = "1D76DB"
+FACTS_APPROVAL_LABEL_DESCRIPTION = "facts.md changes approved by the user"
+APPROVAL_LABELS = (
+    (COMMENT_APPROVAL_LABEL, COMMENT_APPROVAL_LABEL_COLOR, COMMENT_APPROVAL_LABEL_DESCRIPTION),
+    (FACTS_APPROVAL_LABEL, FACTS_APPROVAL_LABEL_COLOR, FACTS_APPROVAL_LABEL_DESCRIPTION),
+)
+CI_WORKFLOWS = ("harness-comment-warning.yml", "harness-facts-approval.yml")
+RULESET_FILE = "harness-ruleset.json"
+RULESET_MANUAL = (
+    "create the `harness` ruleset that requires the harness PR checks on the default branch with no bypass: "
+    "`gh api -X POST repos/{owner}/{repo}/rulesets --input .harness/ci/harness-ruleset.json`"
 )
 
 
@@ -487,6 +496,18 @@ def migrate_test_audit_language_files(target: Path, dry_run: bool) -> list[str]:
         "add per-language review files under .agents/skills/test-audit/languages/; "
         "test-audit reads only the files for languages found by the scan",
         "the test-audit Flag review table keeps only language-independent false positives; no existing project files change",
+    ]
+
+
+def migrate_facts_gate(target: Path, dry_run: bool) -> list[str]:
+    return [
+        f"add .github/workflows/harness-facts-approval.yml (unless --no-ci): a pull request that changes facts.md fails, "
+        f"printing the added and removed lines, until it carries the `{FACTS_APPROVAL_LABEL}` label; a new push removes the label",
+        f"install and update create the `{FACTS_APPROVAL_LABEL}` GitHub label with gh; "
+        "and, after asking, a `harness` GitHub ruleset that makes both harness PR checks required on the default branch "
+        "with no bypass; without gh, a remote, admin rights, or an answer, the report lists the command under manual review",
+        "doggy-workflow asks for each facts.md entry on its own, and writes completion questions into new specs; "
+        "existing specs are not changed",
     ]
 
 
@@ -1319,6 +1340,11 @@ MIGRATIONS = (
         "rename workflow-approach to doggy-workflow; single facts.md; quiz brief, closing report, and stepped specs",
         migrate_doggy_workflow,
     ),
+    (
+        parse_version("0.52.0"),
+        "facts approval gate on pull requests; facts entries approved one at a time; completion questions",
+        migrate_facts_gate,
+    ),
 )
 
 
@@ -1577,8 +1603,8 @@ def render_owned_files(no_ci: bool, agent_model: str = DEFAULT_AGENT_MODEL) -> d
             owned[rel] = path.read_bytes()
 
     if not no_ci:
-        ci_src = SOURCE_HARNESS / "ci" / "harness-comment-warning.yml"
-        owned[".github/workflows/harness-comment-warning.yml"] = ci_src.read_bytes()
+        for workflow in CI_WORKFLOWS:
+            owned[f".github/workflows/{workflow}"] = (SOURCE_HARNESS / "ci" / workflow).read_bytes()
 
     return owned
 
@@ -1921,9 +1947,14 @@ def ensure_git_hooks(target: Path, dry_run: bool, report: dict):
 
 
 def ensure_comment_approval_label(target: Path, dry_run: bool, report: dict):
-    manual = f"create the `{COMMENT_APPROVAL_LABEL}` GitHub label: `{COMMENT_APPROVAL_LABEL_COMMAND}`"
+    for name, color, description in APPROVAL_LABELS:
+        ensure_approval_label(target, dry_run, report, name, color, description)
+
+
+def ensure_approval_label(target: Path, dry_run: bool, report: dict, name: str, color: str, description: str):
+    manual = f'create the `{name}` GitHub label: `gh label create {name} --color {color} --description "{description}"`'
     if dry_run:
-        report["write"].append(f"GitHub label {COMMENT_APPROVAL_LABEL} (if missing)")
+        report["write"].append(f"GitHub label {name} (if missing)")
         return
     gh = shutil.which("gh")
     if gh is None:
@@ -1941,14 +1972,10 @@ def ensure_comment_approval_label(target: Path, dry_run: bool, report: dict):
         )
 
     try:
-        if run_gh(["api", f"repos/{{owner}}/{{repo}}/labels/{COMMENT_APPROVAL_LABEL}"]).returncode == 0:
-            report["skip"].append(f"GitHub label {COMMENT_APPROVAL_LABEL} already exists")
+        if run_gh(["api", f"repos/{{owner}}/{{repo}}/labels/{name}"]).returncode == 0:
+            report["skip"].append(f"GitHub label {name} already exists")
             return
-        created = run_gh([
-            "label", "create", COMMENT_APPROVAL_LABEL,
-            "--color", COMMENT_APPROVAL_LABEL_COLOR,
-            "--description", COMMENT_APPROVAL_LABEL_DESCRIPTION,
-        ])
+        created = run_gh(["label", "create", name, "--color", color, "--description", description])
     except (OSError, subprocess.TimeoutExpired) as error:
         report["manual review"].append(f"gh failed ({error}); {manual}")
         return
@@ -1956,7 +1983,92 @@ def ensure_comment_approval_label(target: Path, dry_run: bool, report: dict):
         reason = (created.stderr.strip() or created.stdout.strip() or f"exit {created.returncode}").splitlines()[0]
         report["manual review"].append(f"gh label create failed ({reason}); {manual}")
         return
-    report["write"].append(f"GitHub label {COMMENT_APPROVAL_LABEL}")
+    report["write"].append(f"GitHub label {name}")
+
+
+def _ruleset_matches(current: dict, wanted: dict) -> bool:
+    def checks(ruleset):
+        return sorted(
+            check.get("context")
+            for rule in ruleset.get("rules", [])
+            if rule.get("type") == "required_status_checks"
+            for check in rule.get("parameters", {}).get("required_status_checks", [])
+        )
+
+    return (
+        current.get("enforcement") == wanted["enforcement"]
+        and current.get("target") == wanted["target"]
+        and not current.get("bypass_actors")
+        and current.get("conditions", {}).get("ref_name", {}).get("include") == wanted["conditions"]["ref_name"]["include"]
+        and not current.get("conditions", {}).get("ref_name", {}).get("exclude")
+        and set(checks(wanted)) <= set(checks(current))
+    )
+
+
+def ensure_required_checks_ruleset(
+    target: Path, dry_run: bool, report: dict, input_fn: Callable[[str], str] = input
+):
+    wanted = json.loads((SOURCE_HARNESS / "ci" / RULESET_FILE).read_text(encoding="utf-8"))
+    if dry_run:
+        report["write"].append("GitHub ruleset harness (asks first; if missing or different)")
+        return
+    gh = shutil.which("gh")
+    if gh is None:
+        report["manual review"].append(f"gh CLI not found; {RULESET_MANUAL}")
+        return
+    if not run_git(target, ["remote"]).stdout.strip():
+        report["manual review"].append(f"no git remote configured; {RULESET_MANUAL}")
+        return
+    env = dict(os.environ, GH_PROMPT_DISABLED="1")
+
+    def run_gh(args, payload=None):
+        stdin = {"input": payload} if payload is not None else {"stdin": subprocess.DEVNULL}
+        return subprocess.run([gh, *args], cwd=target, env=env, capture_output=True, text=True, timeout=60, **stdin)
+
+    def reason(result):
+        return (result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}").splitlines()[0]
+
+    try:
+        listed = run_gh(["api", "repos/{owner}/{repo}/rulesets"])
+        if listed.returncode != 0:
+            report["manual review"].append(f"could not read GitHub rulesets ({reason(listed)}); {RULESET_MANUAL}")
+            return
+        existing = next((item for item in json.loads(listed.stdout or "[]") if item.get("name") == wanted["name"]), None)
+        if existing is not None:
+            detail = run_gh(["api", f"repos/{{owner}}/{{repo}}/rulesets/{existing['id']}"])
+            if detail.returncode != 0:
+                report["manual review"].append(f"could not read the harness ruleset ({reason(detail)}); {RULESET_MANUAL}")
+                return
+            if _ruleset_matches(json.loads(detail.stdout), wanted):
+                report["skip"].append("GitHub ruleset harness already requires the harness PR checks")
+                return
+        action = "Create" if existing is None else "Update"
+        prompt = (
+            f"{action} the GitHub ruleset `harness` so that pull requests into the default branch cannot merge "
+            "until the harness comment and facts checks pass, with no bypass? Pull requests whose branch lacks "
+            "the harness workflows wait on these checks until they include them. [y/N] "
+        )
+        try:
+            answer = input_fn(prompt).strip().lower()
+        except EOFError:
+            answer = ""
+        if answer not in ("y", "yes"):
+            report["manual review"].append(f"ruleset not applied (not confirmed); {RULESET_MANUAL}")
+            return
+        if existing is None:
+            applied = run_gh(["api", "-X", "POST", "repos/{owner}/{repo}/rulesets", "--input", "-"], json.dumps(wanted))
+        else:
+            applied = run_gh(
+                ["api", "-X", "PUT", f"repos/{{owner}}/{{repo}}/rulesets/{existing['id']}", "--input", "-"],
+                json.dumps(wanted),
+            )
+    except (OSError, subprocess.TimeoutExpired, ValueError, KeyError, TypeError, AttributeError) as error:
+        report["manual review"].append(f"gh ruleset setup failed ({error}); {RULESET_MANUAL}")
+        return
+    if applied.returncode != 0:
+        report["manual review"].append(f"gh ruleset {action.lower()} failed ({reason(applied)}); {RULESET_MANUAL}")
+        return
+    report["write"].append(f"GitHub ruleset harness ({action.lower()}d)")
 
 
 def collect_info_items(target: Path, report: dict):
@@ -2045,6 +2157,7 @@ def cmd_install(target: Path, dry_run: bool, no_ci: bool, ask_tools: bool = Fals
     finish_common(target, dry_run, report, fresh_install=True)
     if not no_ci:
         ensure_comment_approval_label(target, dry_run, report)
+        ensure_required_checks_ruleset(target, dry_run, report)
     verification_tools.offer(target, dry_run, ask_tools, report)
     if model:
         save_agent_model(target, model, dry_run, report)
@@ -2252,6 +2365,7 @@ def _update_after_manifest(
     finish_common(target, dry_run, report)
     if not no_ci:
         ensure_comment_approval_label(target, dry_run, report)
+        ensure_required_checks_ruleset(target, dry_run, report)
     verification_tools.offer(target, dry_run, ask_tools, report)
     if model:
         save_agent_model(target, model, dry_run, report)

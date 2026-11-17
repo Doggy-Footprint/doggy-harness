@@ -53,6 +53,8 @@ def _parser() -> argparse.ArgumentParser:
     brief.add_argument("--quiz-questions", type=_non_negative)
     brief.add_argument("--quiz-answered", type=_non_negative)
     brief.add_argument("--quiz-differ", type=_non_negative)
+    brief.add_argument("--completion-invalid", type=_non_negative)
+    brief.add_argument("--completion-differ", type=_non_negative)
 
     verifier = commands.add_parser("verifier", add_help=False)
     verifier.add_argument("--run-id", required=True)

@@ -32,6 +32,7 @@ BRIEF_QUIZ_OF = {"approval", "closing"}
 BRIEF_COUNT_FLAGS = {
     "--fact-questions": "fact_questions", "--user-decisions": "user_decisions", "--picks-differ": "picks_differ",
     "--quiz-questions": "quiz_questions", "--quiz-answered": "quiz_answered", "--quiz-differ": "quiz_differ",
+    "--completion-invalid": "completion_invalid", "--completion-differ": "completion_differ",
 }
 
 
@@ -149,7 +150,7 @@ def parse_brief_args(args: list):
     fields["quiz_of"] = quiz_of
     return {key: fields[key] for key in (
         "workflow_run_id", "spec", "stage", "round", "fact_questions", "user_decisions", "split", "picks_differ",
-        "quiz_of", "quiz_questions", "quiz_answered", "quiz_differ",
+        "quiz_of", "quiz_questions", "quiz_answered", "quiz_differ", "completion_invalid", "completion_differ",
     )}
 
 

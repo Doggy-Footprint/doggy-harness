@@ -1,0 +1,28 @@
+name: Facts approval gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  require-facts-approval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Revoke facts approval on new push
+        if: github.event.action == 'synchronize'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X DELETE repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/facts-approved \
+            || echo "::warning::Could not remove the facts-approved label"
+      - name: Require approval for facts.md changes
+        run: python3 .harness/git/check_facts_change.py "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}" --approved ${{ (github.event.action != 'synchronize' && contains(github.event.pull_request.labels.*.name, 'facts-approved')) && 'yes' || 'no' }}

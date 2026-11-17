@@ -15,7 +15,7 @@ from analytics.app import create_app
 PRICES = ("models:\n  known-model:\n    input: 1\n    output: 1\n    cache_read: 1\n"
           "    cache_write_5m: 1\n    cache_write_1h: 1\n")
 BRIEF_ENTRY_KEYS = {"stage", "round", "fact_questions", "user_decisions", "split", "picks_differ",
-                    "quiz_of", "quiz_questions", "quiz_answered", "quiz_differ", "ts", "session_id", "tool_use_id"}
+                    "quiz_of", "quiz_questions", "quiz_answered", "quiz_differ", "completion_invalid", "completion_differ", "ts", "session_id", "tool_use_id"}
 QUESTION_ENTRY_KEYS = {"run_id", "stage", "round", "ts", "kind", "text"}
 BASE_COMMIT = "ba8371a30185421045dab149bbe1bb324d4cb4cd"
 REPO_ROOT = Path(__file__).resolve().parents[2]
