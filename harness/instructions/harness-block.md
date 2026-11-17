@@ -51,8 +51,7 @@ Summaries, briefs, and reports must be readable without opening another file. Do
 
 ## Editing Skills and Prompts
 
-Before changing a skill, prompt, or agent instruction, recommend the `/skill-creator:skill-creator` skill to the user. Since the skill is heavy,
-invoke it only after the user agrees. If it is not installed, tell the user it comes from Anthropic's official plugin marketplace and that the agent will look up the current install steps there.
+Before changing a skill, prompt, or agent instruction, recommend the `/skill-creator:skill-creator` skill to the user. Invoke it only after the user agrees. If it is not installed, tell the user it comes from Anthropic's official plugin marketplace and that the agent will look up the current install steps there.
 
 ## Commit & PR Messages
 
