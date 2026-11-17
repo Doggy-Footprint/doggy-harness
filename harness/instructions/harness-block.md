@@ -49,6 +49,11 @@ Never decide unspecified task details silently. Resolve what the project, code, 
 
 Summaries, briefs, and reports must be readable without opening another file. Do not use a label the user cannot resolve from the message itself (e.g., `H3`, `F2`, `O-4`, a finding or obligation id) on its own: state what it refers to in plain words, and add the id in parentheses only when the user needs it to find the item.
 
+## Editing Skills and Prompts
+
+Before changing a skill, prompt, or agent instruction, recommend the `/skill-creator:skill-creator` skill to the user. Since the skill is heavy,
+invoke it only after the user agrees. If it is not installed, tell the user it comes from Anthropic's official plugin marketplace and that the agent will look up the current install steps there.
+
 ## Commit & PR Messages
 
 - A commit message carries a `Request:` line (the user request the work answers) and an `Intent:` line (what the change is meant to achieve). The commit-msg hook warns when either is missing; merge, revert, `fixup!`, `squash!`, and `amend!` commits are exempt.
