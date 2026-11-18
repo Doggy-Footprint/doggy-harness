@@ -260,3 +260,65 @@ A06, A16, A20, A21 1.00; A15 0.99; A10b 0.98; A13 0.97(칸 240개); A11 0.94; A1
 - A07은 같은 메시지를 다시 판정했을 때 30%가 뒤집혔습니다. 이 항목의 비교는 판정 잡음이 큽니다. A14는 칸이 10개뿐이고 재판정만으로 0.60에서 0.30으로 움직였습니다.
 - 판정 지침의 세는 예시(`VACUUM FULL`, follow gate 등)와 세지 않는 예시(WebAssembly, MCP)는 이 70회에서 본 것에서 가져왔습니다. 다른 사례에서 같은 정확도가 나오는지는 확인하지 않았습니다.
 - 지침 2의 `search_notes`는 제품 설명도 적게 하지만(5개 한도), 한도를 채우고도 세는 종류가 하나도 없는 실행은 70회 중 없었습니다.
+
+## 2026-11-18-understanding-round-wording-opus-medium
+
+- 종류: 문구 비교. `v053b`(0.53.0에서 덜어낸 형상, 앞 측정의 실행 그대로)와 `v053e`(같은 형상에 이해 라운드 문구 네 곳을 고친 것). 둘 다 opus effort medium이고 스킬 형상이 같아서, 두 변형의 차이는 문구 네 곳뿐입니다.
+- 스킬: `~/.harness/evaluation/workflow_scenes/roots/0.53.0-wip3/`. `0.53.0-wip2`의 사본에 아래 네 곳만 고쳤습니다. 이 측정 시점에 작업 트리의 스킬에는 넣지 않았습니다. brief phase 출력은 2,723단어에서 2,859단어가 됩니다.
+  1. `phases/rounds-understanding.md` 첫 문단, "not from any single required file." 뒤: `Success is what the user can check afterwards: what they asked for and what makes it correct, what keeps working as it does today, and existing behavior the request points to ("like the invoice export": say it follows that one). How it is built, work you would add (tests, documentation), and what it does in a case the request leaves open (empty input, a failure halfway) are decisions and wait for the decision round or the approval brief.`
+  2. `phases/voice.md`의 More engineering 앞: `This rule starts with the decision round: the understanding round states no decision and describes no design.`
+  3. `phases/rounds-understanding.md`의 라운드 끝 문장: `... and no notes on what you read, searched, or found missing, including that \`agent-docs/facts.md\` or an earlier spec does not exist.`
+  4. `phases/rounds-understanding.md`의 사실 질문, "where each answer leads." 뒤: `For a quantity, name the value at which the design changes ("up to tens of thousands of orders the export runs inside the request; above that, as a background job").`
+- 실행기·모델: `run_live.py`, opus, effort medium, 사례 7개 × 5회 = 35회(`cmp-opus-medium`의 `v053e`). 오류 0, 권한 거부 5건. 판정은 sonnet.
+- 비용: 실행 $12.33(실행당 $0.35), 새 변형 판정 $1.75, `v053b` 재판정 $1.76, `cmp-opus-high`의 `base` 재판정 $1.82, 판정 지침 시험 7회.
+- 사용량 창: 시작 전 5시간 0.96이라 초기화(16:00 KST) 뒤에 실행했습니다. 끝날 때 5시간 0.23, 7일 0.39.
+- 판정 지침 3(`grader_a.md`, `judge_a.py`): `design_decisions`의 `chosen`을 다섯 종류로 나눔. `mechanism`(구현 방식), `added_work`(요청에 없는 작업), `open_case`(요청이 다루지 않고 기존 기능에 묶어 적지도 않은 경우의 동작), `pointed`(요청이 본보기로 든 기존 기능을 따른다고 적은 것), `outcome`(요청된 것의 올바름 조건, 새 기능을 쓰지 않는 쪽에 그대로 유지되는 동작). `score_a.py`는 A17a에서 앞의 셋만 세고, 셋을 각각 A17m, A17o, A17w로도 냅니다. 지침 2의 판정은 실행 폴더마다 `judgement.g2.json`, `grading.g2.json`, `judge_cost.g2.json`으로 남겼습니다.
+- 비교: `compare_a.py "cmp-opus-medium:v053b" "cmp-opus-medium:v053e"`, 결과는 `cmp-opus-medium/compare_v053b_v053e_g3.txt`. 기준선과의 비교는 `compare_base_high_v053e_g3.txt`.
+
+### 결과 (변형마다 35회; A17, A19, A23은 25회; 판정 지침 3)
+
+| 항목 | v053b | v053e | 차이와 95% 구간 | 보는 것 |
+| --- | --- | --- | --- | --- |
+| A17a | 0.36 | 0.72 | +0.36 (+0.10 ~ +0.60) | 요청하지 않은 설계 결정을 적지 않는다 (아래 셋 중 하나도 없음) |
+| A17w | 0.60 | 0.96 | +0.36 (+0.20 ~ +0.50) | 요청에 없는 작업을 덧붙이지 않는다 |
+| A17m | 0.72 | 0.88 | +0.16 (−0.05 ~ +0.35) | 구현 방식을 적지 않는다 |
+| A17o | 0.76 | 0.84 | +0.08 (−0.15 ~ +0.30) | 요청이 열어 둔 경우의 동작을 정해 적지 않는다 |
+| A23 | 0.72 | 0.96 | +0.24 (+0.05 ~ +0.40) | 기록이나 파일이 없다는 말을 적지 않는다 |
+| A17b | 0.76 | 0.68 | −0.08 (−0.35 ~ +0.15) | 무엇을 읽고 찾아봤는지 적지 않는다 |
+| A10cq | 0.62 | 0.80 | +0.18 (+0.06 ~ +0.31) | 답마다의 방향을 밝힌 질문 (칸 116개씩) |
+| A10c | 0.27 | 0.54 | +0.27 (+0.05 ~ +0.48) | 메시지의 모든 질문이 답마다의 방향을 밝힌다 (칸 26개씩) |
+| A13 | 0.77 | 0.69 | −0.07 (−0.14 ~ −0.02) | 중요한 unknown을 사실 질문으로 묻는다 (칸 120개씩) |
+| A14 | 0.50 | 0.20 | −0.30 (−0.50 ~ 0.00) | 덜 중요한 unknown을 드러낸다 (칸 10개씩) |
+| A21 | 1.00 | 0.80 | −0.20 (−0.50 ~ 0.00) | 연쇄 끝의 unknown을 드러낸다 (칸 10개씩) |
+| A20 | 1.00 | 0.80 | −0.20 (−0.75 ~ 0.00) | 되돌릴 수 없는 제외를 나열하지 않는다 (칸 5개씩) |
+| A15 | 1.00 | 0.91 | −0.09 (−0.18 ~ 0.00) | Not asked 한 줄 |
+| A11 | 0.96 | 0.88 | −0.08 (−0.22 ~ +0.05) | 답을 추측해 붙이지 않는다 |
+| A03 | 1.00 | 0.94 | −0.06 (−0.14 ~ 0.00) | try-n-fail 기록을 읽거나 검색하지 않는다 |
+| A19a | 0.84 | 0.96 | +0.12 (0.00 ~ +0.25) | 파일 경로와 코드 이름이 없다 |
+
+나머지 항목은 차이가 ±0.08 이내이고 구간이 0을 포함합니다. L01~L03, A01, A02, A04c, A06, A16, A18은 두 변형 모두 1.00입니다.
+
+### 문장 수 (A17을 채점하는 사례 5개, 변형마다 25회)
+
+| 종류 | v053b: 문장 수, 하나 이상 있는 실행 | v053e: 문장 수, 하나 이상 있는 실행 |
+| --- | --- | --- |
+| 덧붙인 작업 | 10문장, 10회 | 1문장, 1회 |
+| 구현 방식 | 9문장, 7회 | 4문장, 3회 |
+| 요청이 열어 둔 경우의 동작 | 7문장, 6회 | 4문장, 4회 |
+| 요청이 가리킨 기존 기능을 따름 (세지 않음) | 6문장, 4회 | 10문장, 6회 |
+| 올바름 조건과 유지되는 동작 (세지 않음) | 20문장, 16회 | 43문장, 25회 |
+| 기록 파일이 없다는 문장 | 7문장, 7회 | 1문장, 1회 |
+| 읽거나 찾아본 과정, 저장소에 없다는 말 | 6문장, 6회 | 8문장, 7회 |
+
+질문은 두 변형 모두 실행당 3.31개입니다. 중요한 unknown을 겨냥한 질문은 89개와 90개, 답마다의 방향을 밝힌 질문은 116개 중 72개와 93개입니다.
+
+### 읽는 법
+
+- 구간이 0 위로 벗어난 것은 요청에 없는 작업(A17w), 설계 결정 전체(A17a), 기록 파일 문장(A23), 답마다의 방향(A10c, A10cq)입니다.
+- 구간이 0 아래로 벗어난 것은 A13 하나입니다. 중요한 unknown 120칸 중 사실 질문으로 물은 것이 92칸에서 83칸이 됐습니다. 줄어든 9칸의 상태는 언급 없음 +5, 가정으로 적음 +3, 상관없다고 적음 +2, 결정으로 적음 −1입니다. 사례별로는 batch-cli −3, cache −2, log-retention −4, mail-backfill 0입니다. 중요한 unknown을 겨냥한 질문 수는 같으므로(89, 90), 질문 하나가 드러내는 unknown이 줄었습니다. 같은 방향으로 움직인 항목이 셋 더 있습니다(A14, A20, A21, 칸 5~10개).
+- A13의 차이를 문구의 효과로 볼지는 이 측정으로 정할 수 없습니다. 같은 `v053b` 메시지를 지침 2와 3으로 판정한 값이 89칸과 92칸으로 3칸 다르고, 구간은 판정 잡음을 넣지 않은 것입니다. 한 번에 본 항목은 38개입니다. 네 문장 중 어느 것이 원인인지 가르는 실행은 하지 않았습니다.
+- 읽거나 찾아본 과정을 적는 문장(A17b)은 줄지 않았습니다. "I read the logs API and the data model." 같은 첫 문장이 남습니다.
+- 수량 질문에 기준값을 적었는지는 판정 항목이 없어 세지 않았습니다.
+- `v053b`를 지침 2에서 3으로 다시 판정하자 A17a는 0.16에서 0.36이 됐습니다(올바름 조건과 유지되는 동작을 세지 않게 된 것). A13은 0.74에서 0.77, A10cq는 0.65에서 0.62, A17b는 0.80에서 0.76으로 움직였는데 이 셋은 지침이 바뀌지 않은 항목입니다.
+- 기준선 `base`(0.52.0, effort high, 지침 3으로 재판정)와 `v053e`의 비교에서 구간이 0 위로 벗어난 것은 A03, A03l, A17, A17a, A17w이고, 0 아래로 벗어난 것은 없습니다. A13은 0.76 대 0.69(−0.14 ~ 0.00)입니다. 이 비교는 스킬 형상, 문구, effort가 함께 다릅니다.
+- 실행 전에 한 예측(깨끗한 컨텍스트의 opus 에이전트가 문구만 읽고 예측)과의 대조: 필터 사례에서 요청이 열어 둔 동작은 10회 중 6.0회에서 3.7회로 예측했고 실제는 5회 중 2회에서 0회, 덧붙인 작업은 4.0회에서 2.0회로 예측했고 실제는 5회 중 3회에서 0회, 기록 파일 문장은 3.7회에서 2.0회로 예측했고 실제는 필터 5회 중 2회에서 1회, 캐시 2회에서 0회입니다. 캐시의 답마다 방향은 67%에서 68%로 예측했고 실제는 26개 중 15개에서 30개 중 27개입니다. 예측에 쓴 문구는 측정한 문구와 달랐습니다(질문의 세 부분 문장이 있었고 예시가 평가 사례와 겹쳤음). A13이 내려가는 것은 예측에 없었습니다.
