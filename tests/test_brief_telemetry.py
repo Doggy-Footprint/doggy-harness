@@ -12,6 +12,7 @@ from hypothesis import strategies as st
 
 from test_installer import REPO_ROOT, run_installer
 from test_telemetry import TelemetryTestCase
+import skill_text
 
 RID = "49bafb302bb6593c"
 REL = ".harness/bin/workflow_marker.py"
@@ -139,6 +140,31 @@ class TestHookDecisionTable(BriefCase):
                 f"{brief_command()} ; {brief_command(stage='approved')}", [("understanding", 1)]),
             "quiz stage": (brief_command(stage="quiz", rnd="2"), [("quiz", 2)]),
             "closing stage": (brief_command(stage="closing"), [("closing", 1)]),
+            "output discarded, then another command": (
+                f"{approval} >/dev/null 2>&1; echo ok", [("approval", 1)]),
+            "stderr redirected right after a count": (f"{approval} 2>/dev/null", [("approval", 1)]),
+            "output appended to a file": (f"{approval} >> /tmp/marker.log", [("approval", 1)]),
+            "both streams redirected with &>": (f"{approval} &>/dev/null", [("approval", 1)]),
+            "input redirected": (f"{approval} < /dev/null", [("approval", 1)]),
+            "heredoc with an apostrophe before the marker": (
+                f"cat > /tmp/picks.md <<'EOF'\nit's a pick; don't \"trust\" it\nEOF\n{approval}", [("approval", 1)]),
+            "heredoc with an apostrophe after the marker": (
+                f"{approval} && cat > /tmp/picks.md <<EOF\ndon't\nEOF", [("approval", 1)]),
+            "tab-stripping heredoc before the marker": (
+                f"cat <<-EOF\n\tit's\n\tEOF\n{approval}", [("approval", 1)]),
+            "here-string before the marker": (f"cat <<< \"it's\"; {approval}", [("approval", 1)]),
+            "marker in and after a heredoc body": (
+                f"cat > run.sh <<'EOF'\n{decision2}\nEOF\n{approval}", [("approval", 1)]),
+            "another command on the next line": (f"{approval}\necho ok", [("approval", 1)]),
+            "another command on the line before": (f"git status\n{approval}", [("approval", 1)]),
+            "two markers on two lines": (f"{approval}\n{decision2}", [("approval", 1), ("decision", 2)]),
+            "heredoc, marker, then another line": (
+                f"cat > /tmp/picks.md <<'EOF'\nit's\nEOF\n{approval}\necho done", [("approval", 1)]),
+            "arguments continued with a backslash": (
+                f"python3 {REL} brief --run-id {RID} \\\n  --stage approval --round 1", [("approval", 1)]),
+            "output discarded, then a command on the next line": (
+                f"{approval} >/dev/null 2>&1\necho ok", [("approval", 1)]),
+            "windows line ends": (f"{approval}\r\necho ok", [("approval", 1)]),
         }
         for name, (command, expected) in cases.items():
             with self.subTest(rule=name):
@@ -178,6 +204,13 @@ class TestHookDecisionTable(BriefCase):
             "unbalanced double quote": brief_command(tail='"oops'),
             "unbalanced single quote": brief_command(tail="'oops"),
             "unbalanced quote before marker": f"echo \"x; {brief_command()}",
+            "marker only inside a heredoc body": f"cat > run.sh <<'EOF'\n{brief_command()}\nEOF",
+            "apostrophe after an unterminated heredoc": f"cat <<EOF\nit's\n{brief_command()}",
+            "stray number without a redirection": brief_command(tail="2"),
+            "stray word before a redirection": brief_command(tail="extra >/dev/null"),
+            "stray number pair before a redirection": brief_command(tail="1 2 >/dev/null"),
+            "marker inside a quoted string that spans lines": f'git commit -m "note\n{brief_command()}\nend"',
+            "stray word before the line break": f"{brief_command(tail='extra')}\necho ok",
         }
         for name, command in cases.items():
             with self.subTest(rule=name):
@@ -433,9 +466,12 @@ class TestAmendReason(BriefCase):
         self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
         return telemetry_dir, env
 
-    def phase(self, env, *args, run_id="run-5"):
+    def phase(self, env, *args, run_id="run-5", rejected=False):
         result = self.marker("phase", "--run-id", run_id, *args, env=env)
-        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
+        self.assertEqual((result.returncode, result.stderr), (0, ""))
+        opening = "doggy-workflow: unknown phase arguments." if rejected else "doggy-workflow phase: "
+        self.assertTrue(result.stdout.startswith(opening), result.stdout[:80])
+        return result
 
     def phases(self, telemetry_dir):
         return [e for e in self.read_events(telemetry_dir, self.repo) if e["event"] == "workflow_phase"]
@@ -461,7 +497,7 @@ class TestAmendReason(BriefCase):
         self.assertIsNone(line["reason"])
         before = len(self.read_events(telemetry_dir, self.repo))
 
-        self.phase(env, "--phase", "amend", "--reason", "bogus")
+        self.phase(env, "--phase", "amend", "--reason", "bogus", rejected=True)
 
         self.assertEqual(len(self.read_events(telemetry_dir, self.repo)), before)
         self.phase(env, "--phase", "amend", "--reason", "correction")
@@ -647,7 +683,8 @@ class TestExistingLineShapes(BriefCase):
         directory, env = self.context(True)
         for phase in ("implement_test", "verify"):
             result = self.marker("phase", "--run-id", "run-48", "--phase", phase, env=env)
-            self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
+            self.assertEqual((result.returncode, result.stderr), (0, ""))
+            self.assertTrue(result.stdout.startswith(f"doggy-workflow phase: {phase}\n\n"), result.stdout[:80])
             events = [e for e in self.read_events(directory, self.repo) if e["event"] == "workflow_phase"
                       and e["phase"] == phase]
             (line,) = events
@@ -722,7 +759,7 @@ class TestHookNeverCrashes(BriefCase):
 class TestSkillText(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.text = SKILL.read_text()
+        cls.text = skill_text.whole(SKILL)
         cls.flat = re.sub(r"\s+", " ", cls.text)
 
     def test_k1_brief_command_line_with_five_stages_and_round(self):
@@ -819,8 +856,8 @@ class TestSkillText(unittest.TestCase):
 
 
 class TestVersionAndMigration(BriefCase):
-    def test_version_file_is_0_52_0(self):
-        self.assertEqual(VERSION_FILE.read_text().strip(), "0.52.0")
+    def test_version_file_is_0_53_0(self):
+        self.assertEqual(VERSION_FILE.read_text().strip(), "0.53.0")
 
     def test_dry_run_from_0_48_0_announces_the_0_49_0_migration_and_later_ones(self):
         manifest_path = self.repo / ".harness" / "manifest.json"
@@ -833,7 +870,7 @@ class TestVersionAndMigration(BriefCase):
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE),
-                         ["0.49.0", "0.49.1", "0.50.0", "0.51.0", "0.52.0"], result.stdout)
+                         ["0.49.0", "0.49.1", "0.50.0", "0.51.0", "0.52.0", "0.53.0"], result.stdout)
         self.assertRegex(result.stdout, r"(?m)^migration 0\.49\.0: \S")
         section = re.split(r"\n(?=migration \d|Apply migration)",
                            result.stdout.split("migration 0.49.0:", 1)[1])[0].lower()

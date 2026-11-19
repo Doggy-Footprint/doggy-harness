@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from test_installer import InstallerTestCase, run_installer
+import skill_text
 
 
 def repo_slug(repo):
@@ -129,7 +130,9 @@ class WorkflowMarkerTestCase(InstallerTestCase):
 
         for result in (phase, verifier, end):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertEqual(result.stdout + result.stderr, "")
+            self.assertEqual(result.stderr, "")
+        self.assertTrue(phase.stdout.startswith("doggy-workflow phase: implement_test\n\n"), phase.stdout[:80])
+        self.assertEqual(verifier.stdout + end.stdout, "")
         events = self.events(telemetry_dir, repo)
         self.assertEqual([event["event"] for event in events], ["workflow_start", "workflow_phase", "verifier_result", "workflow_end"])
         self.assertEqual(events[1]["phase"], "implement_test")
@@ -205,7 +208,7 @@ class WorkflowMarkerTestCase(InstallerTestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         event = self.events(telemetry_dir, repo)[0]
         self.assertEqual(event["v"], 1)
-        self.assertEqual(event["harness_version"], "0.52.0")
+        self.assertEqual(event["harness_version"], "0.53.0")
         self.assertEqual(event["repo"], str(repo.resolve()))
         timestamp = datetime.fromisoformat(event["ts"].replace("Z", "+00:00"))
         self.assertEqual(timestamp.utcoffset(), timedelta(0))
@@ -276,7 +279,7 @@ class WorkflowMarkerTestCase(InstallerTestCase):
 
     def test_m4_installed_skill_requires_all_semantic_transitions_and_best_effort(self):
         repo = self.install()
-        skill = (repo / ".agents" / "skills" / "doggy-workflow" / "SKILL.md").read_text().lower()
+        skill = skill_text.whole(repo / ".agents" / "skills" / "doggy-workflow" / "SKILL.md").lower()
 
         self.assertIn("workflow_marker.py", skill)
         self.assertIn(" start", skill)
@@ -307,7 +310,7 @@ class WorkflowMarkerTestCase(InstallerTestCase):
             for line in command_lines
         ))
         transition_patterns = (
-            r"emit `start`.{0,160}(?:before|prior to) dispatch",
+            r"emit `start`.{0,160}(?:before|prior to)(?: the initial)? dispatch",
             r"emit `implement_test`.{0,160}before.{0,80}(?:parallel|implement)",
             r"`verify`.{0,160}before dispatching a verifier",
             r"emit one `verifier` marker after every verifier result",
@@ -359,7 +362,8 @@ class WorkflowMarkerTestCase(InstallerTestCase):
             "--findings", "0", "--seeds-run", "0", "--seeds-detected", "0",
         )
         self.assertEqual(missing_verifier.returncode, 0, missing_verifier.stdout + missing_verifier.stderr)
-        self.assertEqual(missing_active.stdout + missing_active.stderr, "")
+        self.assertEqual(missing_active.stderr, "")
+        self.assertIn("Not recorded in telemetry: no run is active for run id missing", missing_active.stdout)
         self.assertEqual(missing_verifier.stdout + missing_verifier.stderr, "")
         self.assertEqual(self.events(telemetry_dir, repo), [])
         self.marker(repo, env, "start", "--run-id", "good", "--spec", "preserved", "--spec-version", "1")
@@ -384,8 +388,13 @@ class WorkflowMarkerTestCase(InstallerTestCase):
         for args in invalid:
             with self.subTest(args=args):
                 result = self.marker(repo, env, *args)
-                self.assertEqual(result.returncode, 0)
-                self.assertEqual(result.stdout + result.stderr, "")
+                self.assertEqual((result.returncode, result.stderr), (0, ""))
+                if args[0] != "phase":
+                    self.assertEqual(result.stdout, "")
+                elif args[-1] == "unknown":
+                    self.assertTrue(result.stdout.startswith("doggy-workflow: unknown phase arguments"), result.stdout)
+                else:
+                    self.assertIn("Not recorded in telemetry: no run is active for run id wrong", result.stdout)
         self.assertEqual(self.events(telemetry_dir, repo), baseline)
 
         automatic = self.hook(repo, env, {
@@ -589,8 +598,13 @@ class WorkflowMarkerTestCase(InstallerTestCase):
                         os.chmod(path, 0o500 if path.is_dir() else 0o400)
                     os.chmod(telemetry_dir, 0o500)
                     failed = self.marker(repo, env, *args)
-                    self.assertEqual(failed.returncode, 0, failed.stdout + failed.stderr)
-                    self.assertEqual(failed.stdout + failed.stderr, "")
+                    self.assertEqual((failed.returncode, failed.stderr), (0, ""), failed.stdout + failed.stderr)
+                    if args[0] == "phase":
+                        self.assertTrue(failed.stdout.startswith("doggy-workflow phase: verify\n\n"), failed.stdout[:80])
+                        self.assertNotIn("Not recorded", failed.stdout)
+                        self.assertIn("5. **Verify (fresh test-verifier).**", failed.stdout)
+                    else:
+                        self.assertEqual(failed.stdout, "")
                 finally:
                     os.chmod(telemetry_dir, 0o700)
                     for path in paths:
@@ -713,9 +727,9 @@ class WorkflowMarkerTestCase(InstallerTestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertRegex(result.stdout + result.stderr, r"(?im)^migration .*\b0\.6\.0\b")
         self.assertTrue(marker_path.is_file())
-        skill = skill_path.read_text()
+        skill = skill_text.whole(skill_path)
         self.assertIn("workflow_marker.py", skill)
-        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.52.0")
+        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.53.0")
         self.assertEqual(user_file.read_text(), "keep me\n")
 
     def test_m10_repositories_keep_active_runs_and_telemetry_isolated(self):

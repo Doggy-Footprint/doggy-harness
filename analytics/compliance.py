@@ -16,12 +16,25 @@ def evaluate(events: list[dict]) -> dict:
     implement_count = 0
     verify_count = 0
     terminal_status = None
+    resumes = 0
+    # Both roles are dispatched again after an amendment, for the next step of a
+    # stepped spec once a verifier passed, and by a session that resumes the run.
+    redispatch = False
 
     for index, item in enumerate(events):
         name = item.get("event")
         if item.get("workflow_run_id") != run_id or item.get("spec") != spec:
             reasons.append("identity_mismatch")
         if ended:
+            if name == "workflow_start" and terminal_status == "handoff":
+                # A handoff is a nonterminal stop: a later session resumes the same run
+                # with a new start, and an audit that was pending is abandoned.
+                ended = False
+                terminal_status = None
+                awaiting_result = False
+                redispatch = True
+                resumes += 1
+                continue
             reasons.append("post_end_event")
             continue
         if name == "workflow_start":
@@ -31,8 +44,9 @@ def evaluate(events: list[dict]) -> dict:
             phase = item.get("phase")
             if phase == "implement_test":
                 implement_count += 1
-                if implement_count > 1:
+                if implement_count > 1 and not redispatch:
                     reasons.append("duplicate_implement_test")
+                redispatch = False
                 implemented = True
             elif phase == "verify":
                 verify_count += 1
@@ -44,6 +58,7 @@ def evaluate(events: list[dict]) -> dict:
             elif phase == "amend":
                 if awaiting_result:
                     reasons.append("amend_during_verify")
+                redispatch = True
             else:
                 reasons.append("unknown_phase")
         elif name == "verifier_result":
@@ -51,6 +66,8 @@ def evaluate(events: list[dict]) -> dict:
                 reasons.append("verifier_result_without_verify")
             awaiting_result = False
             last_result = item.get("result")
+            if last_result == "pass":
+                redispatch = True
         elif name == "workflow_end":
             terminal_status = item.get("status")
             ended = True
@@ -59,7 +76,7 @@ def evaluate(events: list[dict]) -> dict:
 
     if events[0].get("event") != "workflow_start" or sum(
         item.get("event") == "workflow_start" for item in events
-    ) != 1:
+    ) != 1 + resumes:
         reasons.append("expected_one_start")
     if terminal_status in {"complete", "limit"}:
         if not implemented or verify_count == 0:

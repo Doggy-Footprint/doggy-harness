@@ -2,6 +2,7 @@
 import argparse
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -17,6 +18,14 @@ frontmatter = spec_state.frontmatter
 seed_files = spec_state.seed_files
 TERMINAL = spec_state.TERMINAL
 RUN_ID_RE = re.compile(r"[0-9a-f]{16}")
+NAME_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+TEMPLATE = Path(__file__).resolve().parents[1] / "skills" / "doggy-workflow" / "spec-template.md"
+TEMPLATE_FRONTMATTER = (
+    ("version: <positive integer>", "version: 1"),
+    ("run_id: <16 lowercase hexadecimal characters>", "run_id: {run_id}"),
+    ("status: draft|active|complete|limit|aborted", "status: draft"),
+    ("base_commit: <full commit id at workflow start>", "base_commit: {base_commit}"),
+)
 COMMIT_RE = re.compile(r"[0-9a-f]{40,64}")
 QUALITY_CHARACTERISTICS = (
     "functional suitability",
@@ -107,6 +116,40 @@ def cmd_validate(args) -> int:
         for error in errors:
             print(f"- {error}", file=sys.stderr)
         return 1
+    return 0
+
+
+def cmd_new(args) -> int:
+    if RUN_ID_RE.fullmatch(args.run_id) is None:
+        return fail("run id must be 16 lowercase hexadecimal characters")
+    if NAME_RE.fullmatch(args.name) is None:
+        return fail("name must be lowercase letters and digits joined by single hyphens")
+    path = SPECS_DIR / f"{args.run_id}-{args.name}.md"
+    taken = sorted(SPECS_DIR.glob(f"{args.run_id}-*.md")) + sorted(SPEC_LOGS_DIR.glob(f"{args.run_id}-*.md"))
+    if taken:
+        return fail(f"run id {args.run_id} already has a spec: {taken[0].relative_to(REPO_ROOT)}")
+    try:
+        text = TEMPLATE.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return fail(f"spec template not readable: {TEMPLATE}")
+    try:
+        head = subprocess.run(["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"],
+                              capture_output=True, text=True, timeout=10).stdout.strip()
+    except (OSError, subprocess.TimeoutExpired):
+        head = ""
+    if COMMIT_RE.fullmatch(head) is None:
+        return fail("cannot read the current commit for base_commit; the repository needs at least one commit")
+    for placeholder, value in TEMPLATE_FRONTMATTER:
+        if text.count(placeholder) != 1:
+            return fail(f"spec template has no line `{placeholder}`")
+        text = text.replace(placeholder, value.format(run_id=args.run_id, base_commit=head))
+    SPECS_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        with open(path, "x", encoding="utf-8") as handle:
+            handle.write(text)
+    except OSError as error:
+        return fail(f"cannot create {path.relative_to(REPO_ROOT)}: {error.strerror}")
+    print(path.relative_to(REPO_ROOT).as_posix())
     return 0
 
 
@@ -271,6 +314,10 @@ def parser() -> argparse.ArgumentParser:
     validate_command = commands.add_parser("validate")
     validate_command.add_argument("--spec", required=True)
     validate_command.set_defaults(handler=cmd_validate)
+    new = commands.add_parser("new")
+    new.add_argument("--run-id", required=True)
+    new.add_argument("--name", required=True)
+    new.set_defaults(handler=cmd_new)
     start = commands.add_parser("start")
     start.add_argument("--spec", required=True)
     start.add_argument("--run-id", required=True)

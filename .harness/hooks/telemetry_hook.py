@@ -20,7 +20,9 @@ PATHS = config.load_paths()
 REPO_ROOT = config.REPO_ROOT
 SEED_SCRIPT = ".harness/bin/seed.py"
 MARKER_SCRIPT = ".harness/bin/workflow_marker.py"
-SEPARATOR_CHARS = ";&|()"
+SEPARATOR_CHARS = ";&|()\n"
+REDIRECT_CHARS = "<>"
+HEREDOC_START = re.compile(r"(?<!<)<<(?!<)-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
 # REPO_ROOT is symlink-resolved (config.py resolves __file__); tool_input
 # paths from the calling agent usually are not, so resolve() here too or
 # every spec write silently drops on a symlinked worktree (e.g. macOS /tmp).
@@ -154,8 +156,34 @@ def parse_brief_args(args: list):
     )}
 
 
+def is_redirect(token: str) -> bool:
+    return (bool(token) and all(char in SEPARATOR_CHARS + REDIRECT_CHARS for char in token)
+            and any(char in REDIRECT_CHARS for char in token))
+
+
+def without_heredoc_bodies(command: str) -> str:
+    # A heredoc body is data, not shell words: one apostrophe in it leaves the
+    # whole command untokenizable, and a marker written there never ran.
+    lines = command.split("\n")
+    kept = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        kept.append(line)
+        index += 1
+        for start in HEREDOC_START.finditer(line):
+            closing = next((later for later in range(index, len(lines))
+                            if lines[later].strip() == start.group(2)), None)
+            if closing is not None:
+                index = closing + 1
+    return "\n".join(kept)
+
+
 def brief_occurrences(command: str) -> list:
-    lexer = shlex.shlex(command, posix=True, punctuation_chars=SEPARATOR_CHARS)
+    # A line break ends a command like `;` does, unless a backslash continues the line.
+    lexer = shlex.shlex(without_heredoc_bodies(command).replace("\\\n", " "), posix=True,
+                        punctuation_chars=SEPARATOR_CHARS + REDIRECT_CHARS)
+    lexer.whitespace = " \t\r"
     lexer.whitespace_split = True
     try:
         tokens = list(lexer)
@@ -168,10 +196,15 @@ def brief_occurrences(command: str) -> list:
         if i + 1 >= len(tokens) or tokens[i + 1] != "brief":
             continue
         end = i + 2
-        while end < len(tokens) and not is_separator(tokens[end]):
+        while end < len(tokens) and not is_separator(tokens[end]) and not is_redirect(tokens[end]):
             end += 1
+        args = tokens[i + 2:end]
+        # In `--round 1 2>/dev/null` the lexer splits off the file descriptor
+        # number as a word; flags come in pairs, so an odd trailing number is it.
+        if end < len(tokens) and is_redirect(tokens[end]) and len(args) % 2 and is_count(args[-1]):
+            args = args[:-1]
         try:
-            fields = parse_brief_args(tokens[i + 2:end])
+            fields = parse_brief_args(args)
         except ValueError:
             # int() refuses digit strings beyond sys.get_int_max_str_digits().
             fields = None

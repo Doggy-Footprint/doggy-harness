@@ -1,0 +1,101 @@
+{
+  "brief": [
+    "workflow-1-recover",
+    "brief-purpose",
+    "voice",
+    "decision-sweep",
+    "rounds-understanding",
+    "rounds-decision",
+    "rounds-approval"
+  ],
+  "draft": [
+    "workflow-2-draft",
+    "spec-format",
+    "verification-design",
+    "verification-evidence",
+    "verification-fuzz",
+    "verification-mutation-tool",
+    "verification-audit-state",
+    "stepped-cut",
+    "stepped-held",
+    "subagent-model",
+    "quiz-rules",
+    "quiz-completion-questions"
+  ],
+  "approve": [
+    "workflow-2-draft",
+    "voice",
+    "rounds-decision",
+    "rounds-approval",
+    "quiz-rules"
+  ],
+  "implement_test": [
+    "workflow-3-implement",
+    "workflow-4-reconcile",
+    {
+      "name": "stepped-run",
+      "when": "stepped"
+    },
+    "subagent-model"
+  ],
+  "verify": [
+    "verification-design",
+    "verification-evidence",
+    {
+      "name": "verification-fuzz",
+      "when": "fuzzing"
+    },
+    {
+      "name": "verification-mutation-tool",
+      "when": "mutation-tool"
+    },
+    "verification-audit-state",
+    "workflow-5-verify",
+    "workflow-6-triage",
+    "workflow-8-stop"
+  ],
+  "amend": [
+    "workflow-7-correct"
+  ],
+  "step": [
+    "stepped-run",
+    "stepped-held",
+    "voice",
+    "rounds-decision",
+    "quiz-rules",
+    "quiz-completion-questions",
+    "quiz-across-sessions"
+  ],
+  "close": [
+    "workflow-8-stop",
+    "workflow-9-close",
+    "quiz-rules",
+    "quiz-completion-questions",
+    "quiz-closing",
+    "quiz-across-sessions",
+    "closing-report",
+    "voice",
+    {
+      "name": "stepped-end",
+      "when": "stepped"
+    }
+  ],
+  "resume": [
+    "workflow-1-recover",
+    {
+      "name": "stepped-resume",
+      "when": "stepped"
+    },
+    {
+      "name": "stepped-run",
+      "when": "stepped"
+    },
+    {
+      "name": "stepped-cut",
+      "when": "not-stepped"
+    },
+    "stepped-held",
+    "quiz-across-sessions",
+    "voice"
+  ]
+}

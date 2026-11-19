@@ -10,6 +10,7 @@ from hook_case import out
 from old_release import BASE_0491, release_source
 from test_installer import REPO_ROOT, InstallerTestCase, load_installer_module, run_installer
 from test_remove_progress import tree_state
+import skill_text as rules
 
 OLD_SKILL = "workflow-approach"
 NEW_SKILL = "doggy-workflow"
@@ -22,7 +23,7 @@ MEMORY_HEADINGS = ("## Failed Attempts & Reasons", "## Decisions & Reasons & Alt
 
 
 def skill_text(root=REPO_ROOT / "harness"):
-    return (root / "skills" / NEW_SKILL / "SKILL.md").read_text()
+    return rules.whole(root / "skills" / NEW_SKILL / "SKILL.md")
 
 
 def section(text, heading):
@@ -72,7 +73,7 @@ class TestRename(Update0491Case):
         result = self.update(repo)
 
         self.assertEqual(result.returncode, 0, out(result))
-        self.assertEqual(self.version(repo), "0.52.0")
+        self.assertEqual(self.version(repo), "0.53.0")
         for rel in (f".claude/skills/{OLD_SKILL}", f".agents/skills/{OLD_SKILL}", f".harness/skills/{OLD_SKILL}"):
             with self.subTest(removed=rel):
                 self.assertFalse(os.path.lexists(repo / rel), rel)
@@ -192,7 +193,7 @@ class TestFactsMigration(Update0491Case):
         self.assertEqual(result.returncode, 0, out(result))
         self.assertFalse(os.path.lexists(repo / "agent-docs" / "facts"))
         self.assertIn("remove the empty agent-docs/facts/", result.stdout)
-        self.assertEqual(self.version(repo), "0.52.0")
+        self.assertEqual(self.version(repo), "0.53.0")
 
     def test_absent_facts_directory_proceeds_without_a_removal_line(self):
         repo = self.installed_0491()
@@ -214,7 +215,7 @@ class TestFactsMigration(Update0491Case):
 
         self.assertEqual(result.returncode, 0, out(result))
         self.assertEqual(facts.read_text(), FACTS_MD)
-        self.assertEqual(self.version(repo), "0.52.0")
+        self.assertEqual(self.version(repo), "0.53.0")
         verify = self.run_verify_rules(repo)
         self.assertEqual(verify.returncode, 0, verify.stdout + verify.stderr)
 
@@ -223,7 +224,7 @@ class TestFactsMigration(Update0491Case):
         entries = [entry for entry in module.MIGRATIONS if entry[0] == module.parse_version("0.51.0")]
         self.assertEqual(len(entries), 1, entries)
         self.assertIs(entries[0][2], module.migrate_doggy_workflow)
-        self.assertEqual(module.MIGRATIONS[-1][0], module.parse_version("0.52.0"))
+        self.assertEqual(module.MIGRATIONS[-1][0], module.parse_version("0.53.0"))
 
 
 class TestInstalledRules(InstallerTestCase):
@@ -267,7 +268,7 @@ class TestShippedText(unittest.TestCase):
     def test_installed_copies_equal_the_shipped_skill(self):
         for rel in (f".agents/skills/{NEW_SKILL}/SKILL.md", f".harness/skills/{NEW_SKILL}/SKILL.md"):
             with self.subTest(copy=rel):
-                self.assertEqual((REPO_ROOT / rel).read_text(), self.text)
+                self.assertEqual(rules.whole(REPO_ROOT / rel), self.text)
         self.assertFalse(os.path.lexists(REPO_ROOT / ".claude" / "skills" / OLD_SKILL))
         self.assertFalse((REPO_ROOT / "harness" / "skills" / OLD_SKILL).exists())
 

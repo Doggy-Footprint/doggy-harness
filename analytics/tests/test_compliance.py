@@ -112,6 +112,57 @@ class ComplianceTests(unittest.TestCase):
         self.assertIn("expected_one_start", outcome["reasons"])
         self.assertEqual(outcome, evaluate(events))
 
+    def test_flows_the_workflow_prescribes_are_compliant(self):
+        start, implement, verify, amend = (
+            event("workflow_start"), event("workflow_phase", phase="implement_test"),
+            event("workflow_phase", phase="verify"), event("workflow_phase", phase="amend"))
+        passed = event("verifier_result", round=1, result="pass", findings=0)
+        retry = event("verifier_result", round=1, result="retry", findings=1)
+        handoff, complete = event("workflow_end", status="handoff"), event("workflow_end", status="complete")
+        flows = {
+            "both roles dispatched again after an amendment": [start, implement, amend, implement, verify, passed, complete],
+            "next step of a stepped spec after a pass": [start, implement, verify, passed, implement, verify, passed, complete],
+            "resumed after a handoff": [start, implement, verify, retry, amend, handoff, start, amend, verify, passed, complete],
+            "resumed and dispatched again without an amendment": [start, implement, handoff, start, implement, verify, passed, complete],
+            "audit pending at the handoff is abandoned": [start, implement, verify, handoff, start, verify, passed, complete],
+            "resumed twice across steps": [start, implement, verify, passed, handoff, start, implement, verify, passed,
+                                           handoff, start, implement, verify, passed, complete],
+            "resumed and stopped again": [start, implement, handoff, start, amend, handoff],
+        }
+        for name, events in flows.items():
+            with self.subTest(flow=name):
+                self.assertEqual(evaluate(events), {"completed": True, "compliant": True, "reasons": []})
+
+    def test_repeats_and_restarts_outside_those_flows_stay_noncompliant(self):
+        start, implement, verify, amend = (
+            event("workflow_start"), event("workflow_phase", phase="implement_test"),
+            event("workflow_phase", phase="verify"), event("workflow_phase", phase="amend"))
+        passed = event("verifier_result", round=1, result="pass", findings=0)
+        limit = event("verifier_result", round=2, result="limit", findings=1)
+        handoff, complete = event("workflow_end", status="handoff"), event("workflow_end", status="complete")
+        cases = {
+            "implement_test twice in a row": ([start, implement, implement, verify, passed, complete],
+                                              "duplicate_implement_test"),
+            "implement_test again after a retry without an amendment": (
+                [start, implement, verify, event("verifier_result", round=1, result="retry", findings=1), implement,
+                 verify, passed, complete], "duplicate_implement_test"),
+            "one amendment covers one dispatch": ([start, implement, amend, implement, implement, verify, passed, complete],
+                                                 "duplicate_implement_test"),
+            "start after a completed run": ([start, implement, verify, passed, complete, start, amend], "post_end_event"),
+            "start after the verifier limit": (
+                [start, implement, verify, limit, event("workflow_end", status="limit"), start, amend, verify, passed,
+                 complete], "post_end_event"),
+            "start after an abort": ([start, event("workflow_end", status="aborted"), start, implement], "post_end_event"),
+            "phase after a handoff without a new start": ([start, implement, handoff, amend], "post_end_event"),
+            "second start without a handoff": ([start, implement, start, verify, passed, complete], "expected_one_start"),
+        }
+        for name, (events, reason) in cases.items():
+            with self.subTest(case=name):
+                outcome = evaluate(events)
+                self.assertTrue(outcome["completed"])
+                self.assertFalse(outcome["compliant"])
+                self.assertIn(reason, outcome["reasons"])
+
 
 if __name__ == "__main__":
     unittest.main()
