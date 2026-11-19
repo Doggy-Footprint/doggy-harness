@@ -1,0 +1,12 @@
+{
+  "_about": "Answer-key fields that the workflow_scenes rubric needs and evaluation/brief_facts/cases/<id>.json lacks. Keyed by case id.",
+  "log-retention": {
+    "irreversible_exclusions": [
+      {"id": "X1", "exclusion": "old rows are deleted without being archived or exported first", "unknowns": ["U5"]},
+      {"id": "X2", "exclusion": "deleted rows cannot be restored (no soft delete, no backup of the deleted rows)", "unknowns": ["U6"]}
+    ]
+  },
+  "mail-backfill": {
+    "chain_unknowns": ["U2", "U4"]
+  }
+}
