@@ -14,6 +14,7 @@ from pathlib import Path
 from hook_case import HookCase, out
 from old_release import BASE_0491, base_file, release_source
 from test_installer import REPO_ROOT, InstallerTestCase, load_installer_module, run_git, run_installer
+import skill_text
 
 ID_A = "aaaaaaaaaaaaaaaa"
 BASE_X = "abc123def4567890abc123def4567890abc123de"
@@ -340,7 +341,7 @@ class TestUpdateFrom0491(Update0491Case):
         self.assertTrue((repo / ".harness" / "sessions" / "progress-notes.txt").is_file())
         self.assert_hook_files_coexist(repo)
         manifest = json.loads((repo / ".harness" / "manifest.json").read_text())
-        self.assertEqual(manifest["version"], "0.52.0")
+        self.assertEqual(manifest["version"], "0.53.0")
         for name in ("progress_hook", "sync_progress", "continue-on", "lib/progress.py", "bin/progress.py",
                      "instructions/progress.md"):
             self.assertEqual([k for k in manifest.get("files", {}) if name in k], [], name)
@@ -396,7 +397,7 @@ class TestUpdateFrom0491(Update0491Case):
         entries = [entry for entry in module.MIGRATIONS if entry[0] == module.parse_version("0.50.0")]
         self.assertEqual(len(entries), 1, entries)
         self.assertIs(entries[0][2], module.migrate_remove_progress)
-        self.assertEqual(module.MIGRATIONS[-3][0], module.parse_version("0.50.0"))
+        self.assertEqual(module.MIGRATIONS[-4][0], module.parse_version("0.50.0"))
 
     def test_vo6_s3_c20_continue_on_that_is_not_the_harness_symlink_is_left_and_reported(self):
         def user_dir(link):
@@ -481,7 +482,7 @@ class TestLegacyChainAndClean(Update0491Case):
         manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
         result = run_installer("update", str(repo), input="y\n" * 80, exact=True)
         self.assertEqual(result.returncode, 0, out(result))
-        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.52.0")
+        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.53.0")
         for rel in ("agent-docs/progress", "agent-docs/progress-logs", ".claude/skills/continue-on",
                     ".agents/skills/continue-on", ".harness/hooks/progress_hook.py"):
             self.assertFalse(os.path.lexists(repo / rel), rel)
@@ -516,10 +517,10 @@ class TestLegacyChainAndClean(Update0491Case):
 
         self.assertEqual(result.returncode, 0, out(result))
         self.assertNotIn("Traceback", result.stderr)
-        self.assertEqual(re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE), ["0.50.0", "0.51.0", "0.52.0"])
+        self.assertEqual(re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE), ["0.50.0", "0.51.0", "0.52.0", "0.53.0"])
         self.plan_text_names_every_item(migration_section(result.stdout))
         self.assertNotIn(LEFT_IN_PLACE, result.stdout)
-        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.52.0")
+        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.53.0")
 
 
 class TestFreshInstall(InstallerTestCase):
@@ -780,7 +781,7 @@ class TestShippedText(unittest.TestCase):
                   "installed here": REPO_ROOT / ".agents" / "skills" / "doggy-workflow" / "SKILL.md"}
         for label, path in copies.items():
             with self.subTest(copy=label):
-                text = path.read_text()
+                text = skill_text.whole(path)
                 step1, step9 = numbered_step(text, 1), numbered_step(text, 9)
                 self.assertIn(STEP1_RESUME, step1)
                 self.assertNotIn("/continue-on", step1)
@@ -799,8 +800,8 @@ class TestShippedText(unittest.TestCase):
             self.assertNotIn(needle, text)
 
     def test_vo9_x6_this_repository_is_updated_past_0500(self):
-        self.assertEqual((REPO_ROOT / "harness" / "VERSION").read_text().strip(), "0.52.0")
-        self.assertEqual(json.loads((REPO_ROOT / ".harness" / "manifest.json").read_text())["version"], "0.52.0")
+        self.assertEqual((REPO_ROOT / "harness" / "VERSION").read_text().strip(), "0.53.0")
+        self.assertEqual(json.loads((REPO_ROOT / ".harness" / "manifest.json").read_text())["version"], "0.53.0")
         for rel in ("agent-docs/progress", "agent-docs/progress-logs"):
             self.assertFalse(os.path.lexists(REPO_ROOT / rel), rel)
 

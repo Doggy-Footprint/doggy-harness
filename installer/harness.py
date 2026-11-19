@@ -511,6 +511,25 @@ def migrate_facts_gate(target: Path, dry_run: bool) -> list[str]:
     ]
 
 
+def migrate_phase_rules(target: Path, dry_run: bool) -> list[str]:
+    return [
+        "doggy-workflow: SKILL.md keeps the phase table, the spec's identity rules, memory, and the general telemetry "
+        "rules; the rules of each phase move into the skill's phases/ directory, listed for each phase in phases.json, "
+        "and the marker commands and their rules into markers.json",
+        "`workflow_marker.py phase --phase brief|draft|approve|implement_test|verify|amend|step|close|resume` prints the "
+        "rules of that phase and its marker commands with the run id filled in; `phase --phase brief` without --run-id "
+        "issues the run id; `--again` prints without recording; a phase leaves out the stepped-spec, fuzzing, and "
+        "mutation-tool rules that the run's spec does not use, and `--all` prints them",
+        "implement_test, verify, and amend still record their telemetry line, and say so when no run is active",
+        "`spec_lifecycle.py new --run-id ID --name NAME` creates the spec from the skill's spec-template.md with the "
+        "frontmatter filled in; the template is no longer printed inside the skill",
+        "the telemetry hook records a brief marker that is followed by a redirection, by a command on the next line, "
+        "or that shares its command with a heredoc",
+        "the rules for specs written before 0.52.0 are removed; other specs are not changed, and in a later session "
+        "`phase --run-id ID --phase resume` prints how to continue an active spec",
+    ]
+
+
 def migrate_codex_unsupported(target: Path, dry_run: bool) -> list[str]:
     return [
         "Codex is no longer a supported runtime; generated .codex/ files remain best-effort",
@@ -1344,6 +1363,12 @@ MIGRATIONS = (
         parse_version("0.52.0"),
         "facts approval gate on pull requests; facts entries approved one at a time; completion questions",
         migrate_facts_gate,
+    ),
+    (
+        parse_version("0.53.0"),
+        "doggy-workflow rules are printed phase by phase by the phase command, which also issues the run id; "
+        "brief markers survive redirections and heredocs",
+        migrate_phase_rules,
     ),
 )
 

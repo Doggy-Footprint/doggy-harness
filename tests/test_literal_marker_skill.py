@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 import test_installer
+import skill_text
 
 REPO_ROOT = test_installer.REPO_ROOT
 SKILL = REPO_ROOT / "harness" / "skills" / "doggy-workflow" / "SKILL.md"
@@ -20,7 +21,7 @@ def telemetry_section(text):
 class TestTelemetrySectionStatesLiteralMarkerArguments(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.whole = SKILL.read_text(encoding="utf-8")
+        cls.whole = skill_text.whole(SKILL)
         cls.section = telemetry_section(cls.whole)
 
     def test_section_is_found_and_bounded_by_the_next_top_level_heading(self):
@@ -54,8 +55,8 @@ def tree_digest(root):
 
 
 class TestVersionAndMigration(unittest.TestCase):
-    def test_version_file_is_0_52_0(self):
-        self.assertEqual(VERSION_FILE.read_text(encoding="utf-8").strip(), "0.52.0")
+    def test_version_file_is_0_53_0(self):
+        self.assertEqual(VERSION_FILE.read_text(encoding="utf-8").strip(), "0.53.0")
 
     def test_dry_run_from_0_49_0_announces_the_0_49_1_migration_and_changes_nothing(self):
         temporary = tempfile.TemporaryDirectory()
@@ -75,7 +76,7 @@ class TestVersionAndMigration(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE),
-                         ["0.49.1", "0.50.0", "0.51.0", "0.52.0"], result.stdout)
+                         ["0.49.1", "0.50.0", "0.51.0", "0.52.0", "0.53.0"], result.stdout)
         self.assertRegex(result.stdout, r"(?m)^migration 0\.49\.1: \S")
         section = re.split(r"\n(?=migration \d|Apply migration)",
                            result.stdout.split("migration 0.49.1:", 1)[1])[0]

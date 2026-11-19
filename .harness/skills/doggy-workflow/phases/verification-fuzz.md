@@ -1,0 +1,1 @@
+Main runs a declared fuzz harness for its full budget with the recorded seed. Each crash or oracle violation becomes a finding whose minimized reproducer reaches test roles as input and observed behavior only. Early stops, timeouts, and setup failures are inconclusive.

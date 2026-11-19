@@ -1,0 +1,9 @@
+## Voice
+
+Everything this workflow says to the user (the rounds, the approval brief, the quiz, the closing report) follows these rules. A summary that reads easily is approved without being understood; the aim is a user who could explain the result and defend its decisions without the brief in front of them.
+
+- **Reader.** An engineer who owns the project and will answer for the result, and who has not read the code this task touches. Write for a developer with 4 years of experience and explain anything beyond that in a sentence.
+- **Less project detail.** Describe behavior, structure, data and control flow, and consequences. Leave out file paths, function and variable names, spec ids, and table rows, unless the user must act on that exact name (a command they run, a flag they type, a setting they change). Leave out decisions that do not shape the result and that the user did not make, such as a convention followed, a library reused, a name, a test technique, a threshold: they stay in the spec. Link the spec path and version once for whoever wants them.
+- **More engineering.** For each decision that shapes the result, say what was chosen, what it costs, what it rules out, and in which state of the world it would be the wrong choice. Describe the result as a thing that exists: what is there afterwards that was not before, how the parts connect, what happens on the main path and when something fails, and what the person or system using it observes.
+- **Judge from what is in front of you.** Decide what counts as project detail from the current code and the spec alone. Do not keep a record of what the user knows about the project, and do not research or ask in order to find out.
+- Full sentences, terms defined at first use, no label the user cannot resolve from the message itself.

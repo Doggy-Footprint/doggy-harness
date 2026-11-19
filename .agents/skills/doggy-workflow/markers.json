@@ -1,0 +1,132 @@
+{
+  "commands": {
+    "brief": "python3 .harness/bin/workflow_marker.py brief --run-id ID --stage understanding|decision|approval|quiz|closing --round N [--fact-questions N] [--user-decisions N] [--split none|proposed|accepted|declined] [--picks-differ N] [--quiz-questions N] [--quiz-of approval|closing] [--quiz-answered N] [--quiz-differ N] [--completion-invalid N] [--completion-differ N]",
+    "start": "python3 .harness/bin/spec_lifecycle.py start --spec PATH --run-id ID && python3 .harness/bin/workflow_marker.py start --run-id ID --spec NAME --spec-version N",
+    "verifier": "python3 .harness/bin/workflow_marker.py verifier --run-id ID --round N --result pass|retry|limit --findings N --seeds-run N --seeds-detected N",
+    "verification": "python3 .harness/bin/workflow_marker.py verification --run-id ID --fuzz-execs N --fuzz-violations N --mutants N --killed N --survived N --equivalent N --overturned N",
+    "end": "python3 .harness/bin/workflow_marker.py end --run-id ID --status complete|limit|handoff|aborted"
+  },
+  "rules": [
+    [
+      "brief-rounds",
+      "Emit `brief` in the same turn as each understanding round, decision round, and approval brief, with `--stage` naming it and `--round N` counting rounds of that stage from 1."
+    ],
+    [
+      "brief-counts",
+      "`--fact-questions` counts the fact questions asked in that round; `--user-decisions` is the *Your decision* count over the whole task so far, as the cap counts it; `--split` is `proposed` in the round that proposes a split, `accepted` or `declined` in the next round after the user answers, and `none` otherwise; on the approval brief, `--picks-differ` counts the decisions where the user's choice differs from the picks file."
+    ],
+    [
+      "split-step-cut",
+      "A step cut recommended in the approval brief counts as a proposed split."
+    ],
+    [
+      "brief-closing",
+      "Emit `brief` with stage `closing` in the same turn as each closing report."
+    ],
+    [
+      "quiz-questions",
+      "On an approval brief and on a closing report, `--quiz-questions` counts the quiz questions that message asks."
+    ],
+    [
+      "completion-counts",
+      "On a closing report, `--completion-invalid` counts the completion questions judged invalid at that closing, and `--completion-differ` the valid ones whose completion-check answer differed from the expected answer (0 when the check was skipped)."
+    ],
+    [
+      "brief-quiz",
+      "Emit `brief` with stage `quiz` in the turn that handles the user's reply to a quiz, after an approval brief and after a closing report alike, counting quizzes of the run from 1: `--quiz-of` is `approval` or `closing`, naming the message that asked the quiz; `--quiz-answered` is how many questions the user answered (0 when the user skipped the quiz), and `--quiz-differ` is how many of those answers differed from the expected answers written beforehand."
+    ],
+    [
+      "start",
+      "Emit `start` before the initial dispatch, and again when a later session resumes the run."
+    ],
+    [
+      "verifier",
+      "Emit one `verifier` marker after every verifier result."
+    ],
+    [
+      "verifier-counts",
+      "`--findings` counts the findings of that result; `--seeds-run` counts the confirming mutations run while triaging it, and `--seeds-detected` those the intended assertion detected, so emit the marker once they have run."
+    ],
+    [
+      "verification",
+      "Emit one `verification` marker after each fuzz and mutation-tool pass; `--equivalent` counts accepted `equivalent` verdicts and `--overturned` reversed ones."
+    ],
+    [
+      "end",
+      "Emit `end complete` after completion, `end limit` when the verifier budget is exhausted, `end handoff` for a nonterminal stop (the status token keeps its name), and `end aborted` after an approved recovery abort."
+    ]
+  ],
+  "phases": {
+    "brief": {
+      "commands": [
+        "brief"
+      ],
+      "rules": [
+        "brief-rounds",
+        "brief-counts",
+        "split-step-cut"
+      ]
+    },
+    "approve": {
+      "commands": [
+        "brief",
+        "start"
+      ],
+      "rules": [
+        "brief-rounds",
+        "brief-counts",
+        "split-step-cut",
+        "quiz-questions",
+        "brief-quiz",
+        "start"
+      ]
+    },
+    "verify": {
+      "commands": [
+        "verifier",
+        {
+          "name": "verification",
+          "when": "fuzzing-or-mutation-tool"
+        }
+      ],
+      "rules": [
+        "verifier",
+        "verifier-counts",
+        {
+          "name": "verification",
+          "when": "fuzzing-or-mutation-tool"
+        }
+      ]
+    },
+    "step": {
+      "commands": [
+        "brief"
+      ],
+      "rules": [
+        "brief-rounds",
+        "brief-counts"
+      ]
+    },
+    "close": {
+      "commands": [
+        "brief",
+        "end"
+      ],
+      "rules": [
+        "brief-closing",
+        "quiz-questions",
+        "completion-counts",
+        "brief-quiz",
+        "end"
+      ]
+    },
+    "resume": {
+      "commands": [
+        "start-marker"
+      ],
+      "rules": [
+        "start"
+      ]
+    }
+  }
+}
