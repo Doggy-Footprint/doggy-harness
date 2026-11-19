@@ -14,7 +14,6 @@ SKILL = SKILL_DIR / "SKILL.md"
 RID = "49bafb302bb6593c"
 PRINT_ONLY = ("brief", "draft", "approve", "step", "close", "resume")
 RECORDED = ("implement_test", "verify", "amend")
-# Marker commands each phase prints, in order; the other phases print no marker block.
 MARKER_COMMANDS = {
     "brief": ["brief"], "approve": ["brief", "start"], "verify": ["verifier", "verification"],
     "step": ["brief"], "close": ["brief", "end"], "resume": ["start-marker"],
@@ -23,8 +22,6 @@ MARKER_COMMANDS = {
 # cuts Bash output at 30,000 characters; both limits leave room below them here.
 CORE_WORD_LIMIT = 3000
 PHASE_CHARACTER_LIMIT = 20000
-# Where a fragment cites another section: the fragments that hold that section (any one satisfies it), and
-# whether the wording ("the rules above", "as above") needs it earlier in the same output.
 CITATIONS = {
     "closing-report": [({"quiz-rules"}, False), ({"quiz-rules"}, False)],
     "quiz-closing": [({"quiz-rules"}, True)],
@@ -42,7 +39,6 @@ CITATIONS = {
 }
 CITATION = re.compile(r"\(see (?:Quiz|Stepped specs|Context pass)\)|as (?:Quiz|Stepped specs|Running a step) describes"
                       r"|in the terms of Voice|the rules above|as above|Workflow item 9")
-# Citations a phase leaves to the phase table and `--again`, each with the reason it is not needed in view.
 LOOKED_UP = {
     ("brief", "rounds-approval", "quiz-rules"): "the approval brief is written in approve, which prints Quiz",
     ("brief", "rounds-decision", "stepped-cut"): "the decision round only outlines a cut; draft prints its rules",
@@ -90,7 +86,6 @@ class PhaseCase(TelemetryTestCase):
         self.assertEqual(done.returncode, 0, done.stderr)
 
     def printed(self, phase, run_id=RID, without=()):
-        """The rules and marker block a phase prints when the named parts are left out."""
         names = [skill_text.entry_name(entry) for entry in json.loads((self.installed / "phases.json").read_text())[phase]]
         self.assertLessEqual(set(without) - {"verification-marker"}, set(names))
         text = "\n".join((self.installed / "phases" / f"{name}.md").read_text()

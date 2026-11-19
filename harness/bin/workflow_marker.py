@@ -23,7 +23,6 @@ NOT_RECORDED = (
 )
 PRINTED_AGAIN = "Printed again: nothing was recorded."
 LEFT_OUT = "Left out: {parts}. `--all` prints everything."
-# Why a part does not apply, by the condition its manifest entry names.
 NOT_APPLICABLE = {
     "stepped": "the spec has no steps",
     "not-stepped": "the spec already has steps",
@@ -121,7 +120,6 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _spec_facts(run_id: str | None) -> dict:
-    """What the run's spec says about itself; empty when there is no single readable spec for the run id."""
     if not run_id:
         return {}
     try:

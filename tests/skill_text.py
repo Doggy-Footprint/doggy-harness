@@ -3,7 +3,6 @@ section stood, so a wording check finds a sentence wherever the skill delivers i
 import json
 from pathlib import Path
 
-# Fragments in reading order, keyed by the SKILL.md section they follow.
 AFTER = {
     "# Spec": ["spec-format"],
     "# Memory": [

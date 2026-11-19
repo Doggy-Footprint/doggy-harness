@@ -180,7 +180,6 @@ def without_heredoc_bodies(command: str) -> str:
 
 
 def brief_occurrences(command: str) -> list:
-    # A line break ends a command like `;` does, unless a backslash continues the line.
     lexer = shlex.shlex(without_heredoc_bodies(command).replace("\\\n", " "), posix=True,
                         punctuation_chars=SEPARATOR_CHARS + REDIRECT_CHARS)
     lexer.whitespace = " \t\r"

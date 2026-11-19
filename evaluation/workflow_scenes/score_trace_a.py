@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Scene A items that need the tool trace of a run_live.py run: A01-A05, A18, and the late-loading checks."""
 import argparse
 import json
 import re
@@ -31,7 +30,6 @@ def text_of(call: dict) -> str:
 
 
 def record_uses(calls: list[dict]) -> tuple[list[str], list[str]]:
-    """Split the calls that name the failed-approaches folder into bare listings and everything else."""
     listings, reads = [], []
     for call in calls:
         if RECORDS not in text_of(call):

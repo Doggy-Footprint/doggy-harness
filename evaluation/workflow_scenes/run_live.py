@@ -163,7 +163,7 @@ def run_one(job: dict, model: str, effort: str, timeout: int, budget: float) -> 
         if reason:
             return f"{job['run_dir']}: deferred ({reason})"
         return execute(job, model, effort, timeout, budget)
-    except Exception as failure:  # one broken run must not end the batch
+    except Exception as failure:
         (job["run_dir"] / "meta.json").write_text(json.dumps({"error": repr(failure)}), encoding="utf-8")
         return f"{job['run_dir']}: {failure!r}"
 

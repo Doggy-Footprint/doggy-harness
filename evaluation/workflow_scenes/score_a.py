@@ -11,8 +11,6 @@ from judge_a import load_case  # noqa: E402
 # trycompai/crm's own AGENTS.md makes every message end with an Issues list,
 # which A17 and A19 would count against the skill.
 OWN_MESSAGE_RULES = "trycompai/crm"
-# Grader 2 called every unrequested decision "chosen"; grader 3 splits it and no longer counts a correctness
-# condition, unchanged existing behavior, or behavior tied to a feature the task names as its model.
 DECISION_KINDS = ("chosen", "mechanism", "added_work", "open_case")
 TEXT = {
     "A06": "이해한 내용의 네 요소가 모두 있다",
