@@ -323,7 +323,7 @@ class InstallTests(FactsCheckCase):
         manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
         skip_legacy_update(("update", str(repo)))
         result = subprocess.run([sys.executable, str(INSTALLER), "update", str(repo), "--no-commit"],
-                                input="y\n" * 4, capture_output=True, text=True)
+                                input="y\n" * 5, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         section = result.stdout.split("migration 0.52.0", 1)[1].split("Apply migration", 1)[0]
         self.assertIn(LABEL, section)

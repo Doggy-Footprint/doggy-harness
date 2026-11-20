@@ -1,12 +1,13 @@
 **3. Approval brief.** After drafting the spec and searching try-n-fail, present, in this order:
-- *What will exist*: the result as a thing, in the terms of Voice, and what it deliberately leaves out. Start from *How it works today* in the understanding round: what changes (parts added or rewired, state moved or reshaped), and for each inherited decision the work touches, whether it is kept or revisited and why.
-- *Your decisions*: the user's choice, your pick and reason as written in the picks file before the user answered, what differs, and what the choice costs and rules out. When they differ, ask what the user's choice rested on, and propose a `facts.md` entry when the answer is a fact.
-- *Decided for you*: the engineer calls only. For each: the choice, what it trades away, the option not taken and the state of the world in which that option wins, and how to change it later. Close with one sentence saying that the remaining defaults (conventions followed, thresholds, coverage targets, test techniques, the installed role models) are recorded in the spec's `# Assumptions and Defaults` and that approval covers them.
+- *What will exist*: the result as a thing, in the terms of Voice, and what it deliberately leaves out. Start from *How it works today* in the understanding round: what changes (parts added or rewired, state moved or reshaped), and whether each inherited decision the work touches is kept or revisited, and why.
+- *Your decisions*: the user's choice, your pick and reason as the picks file recorded them before the user answered, what differs, and what the choice costs and rules out. When they differ, ask what the user's choice rested on, and queue a proposed `facts.md` entry when the answer is a fact.
+- *Decided for you*: the engineer calls only, each with the choice, what it trades away, the option not taken and the state of the world in which that option wins, and how to change it later. Close with one sentence saying that the remaining defaults (conventions followed, thresholds, coverage targets, test techniques, the installed role models) are in the spec's `# Assumptions and Defaults` and approval covers them.
 - *Still open*: each open question, what will settle it, and what the work does until then.
 - *Conflict*: a choice that contradicts what the user or project stated. Show both sides and ask.
-- *New concept*: a decision that depends on knowledge the user may lack. First ask whether the user already knows the concept; ask fresh every run. Then give one sentence on what it is and why it matters here. For a *Decided for you* item add a concrete consequence of each option and the choice; for a *Your decision* item add neither.
+- *New concept*: a decision that depends on knowledge the user may lack. First ask whether the user already knows the concept, fresh every run. Then give one sentence on what it is and why it matters here. For a *Decided for you* item, add a concrete consequence of each option and the choice; for a *Your decision* item, add neither.
 - When the user answered the invitation: which decisions both lists share, which only the user named, and which only the sweep found.
 - For a stepped spec: the steps, what the user can observe after each, and which decisions wait for which step.
-- Quality expectations in plain words for applicable characteristics only (for example "must not crash on a broken log line"); mention a non-applicable one only when that may surprise the user. ISO terms stay in the spec.
+- Quality expectations in plain words, for applicable characteristics only ("must not crash on a broken log line"); mention a non-applicable one only when that may surprise the user. ISO terms stay in the spec.
 - *Quiz*, then the request for approval (see Quiz).
-- *Records to approve* go in a separate message, sent after the approval reply is resolved (see Facts).
+
+Send *Records to approve* in a separate message after the approval reply is resolved (see Facts).

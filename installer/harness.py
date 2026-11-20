@@ -1211,6 +1211,15 @@ def migrate_project_map(target: Path, dry_run: bool) -> list[str]:
     ]
 
 
+def migrate_skill_rewrite(target: Path, dry_run: bool) -> list[str]:
+    return [
+        "doggy-workflow: the skill text is rewritten for consistency with the same rules; a Terms section defines "
+        "the workflow's terms, and sentences that disagreed between phase fragments now agree",
+        "the verify phase also prints the subagent model rules",
+        "no data is migrated",
+    ]
+
+
 def migrate_doggy_workflow(target: Path, dry_run: bool) -> list[str]:
     conflicts = []
     empty_dirs = []
@@ -1397,6 +1406,11 @@ MIGRATIONS = (
         parse_version("0.55.0"),
         "project-map skill; doggy-workflow briefs explain the touched code as it stands and its inherited decisions",
         migrate_project_map,
+    ),
+    (
+        parse_version("0.55.1"),
+        "doggy-workflow skill text rewritten for consistency with the same rules",
+        migrate_skill_rewrite,
     ),
 )
 

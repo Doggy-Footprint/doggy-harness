@@ -852,12 +852,12 @@ class TestSkillText(unittest.TestCase):
         self.assert_flag_meaning("--completion-invalid", [r"completion questions judged invalid"])
         self.assert_flag_meaning("--completion-differ", [r"differed from the expected answer", r"0 when the check was skipped"])
         self.assertRegex(self.flat, r"after an approval brief and after a closing report alike")
-        self.assertRegex(self.flat, r"emits the `quiz` telemetry marker with `--quiz-of closing`")
+        self.assertRegex(self.flat, r"emits the `brief` marker with `--stage quiz --quiz-of closing`")
 
 
 class TestVersionAndMigration(BriefCase):
     def test_version_file_is_0_53_0(self):
-        self.assertEqual(VERSION_FILE.read_text().strip(), "0.55.0")
+        self.assertEqual(VERSION_FILE.read_text().strip(), "0.55.1")
 
     def test_dry_run_from_0_48_0_announces_the_0_49_0_migration_and_later_ones(self):
         manifest_path = self.repo / ".harness" / "manifest.json"
@@ -870,7 +870,7 @@ class TestVersionAndMigration(BriefCase):
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE),
-                         ["0.49.0", "0.49.1", "0.50.0", "0.51.0", "0.52.0", "0.53.0", "0.54.0", "0.55.0"], result.stdout)
+                         ["0.49.0", "0.49.1", "0.50.0", "0.51.0", "0.52.0", "0.53.0", "0.54.0", "0.55.0", "0.55.1"], result.stdout)
         self.assertRegex(result.stdout, r"(?m)^migration 0\.49\.0: \S")
         section = re.split(r"\n(?=migration \d|Apply migration)",
                            result.stdout.split("migration 0.49.0:", 1)[1])[0].lower()
