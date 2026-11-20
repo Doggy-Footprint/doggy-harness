@@ -857,7 +857,7 @@ class TestSkillText(unittest.TestCase):
 
 class TestVersionAndMigration(BriefCase):
     def test_version_file_is_0_53_0(self):
-        self.assertEqual(VERSION_FILE.read_text().strip(), "0.53.0")
+        self.assertEqual(VERSION_FILE.read_text().strip(), "0.54.0")
 
     def test_dry_run_from_0_48_0_announces_the_0_49_0_migration_and_later_ones(self):
         manifest_path = self.repo / ".harness" / "manifest.json"
@@ -870,7 +870,7 @@ class TestVersionAndMigration(BriefCase):
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE),
-                         ["0.49.0", "0.49.1", "0.50.0", "0.51.0", "0.52.0", "0.53.0"], result.stdout)
+                         ["0.49.0", "0.49.1", "0.50.0", "0.51.0", "0.52.0", "0.53.0", "0.54.0"], result.stdout)
         self.assertRegex(result.stdout, r"(?m)^migration 0\.49\.0: \S")
         section = re.split(r"\n(?=migration \d|Apply migration)",
                            result.stdout.split("migration 0.49.0:", 1)[1])[0].lower()

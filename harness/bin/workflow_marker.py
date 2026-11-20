@@ -214,6 +214,15 @@ def _run_is_active(run_id: str | None) -> bool:
     return bool(run_id) and workflow is not None and workflow["workflow_run_id"] == run_id
 
 
+def _checkout_setup_lines(again: bool) -> list[str]:
+    try:
+        import checkout_setup
+
+        return checkout_setup.ensure(config.REPO_ROOT, retry_failed=False, start=not again)
+    except Exception:
+        return []
+
+
 def _phase(args) -> None:
     # The output is the phase's instructions, so it is printed whatever happens to the telemetry line.
     lines = [f"doggy-workflow phase: {args.phase}"]
@@ -238,6 +247,7 @@ def _phase(args) -> None:
     markers, without_commands = _phase_markers(args.phase, run_id, facts)
     if left_out or without_commands:
         lines.append(LEFT_OUT.format(parts=", ".join(left_out + without_commands)))
+    lines.extend(_checkout_setup_lines(args.again))
     _write("\n".join(lines) + "\n\n" + rules + markers)
 
 

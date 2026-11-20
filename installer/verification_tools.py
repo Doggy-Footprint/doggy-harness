@@ -1,34 +1,48 @@
 import json
-import os
-import re
 import shutil
 import subprocess
+import sys
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
+_PAYLOAD_LIB = str(Path(__file__).resolve().parents[1] / "harness" / "lib")
+if _PAYLOAD_LIB not in sys.path:
+    sys.path.insert(0, _PAYLOAD_LIB)
+import checkout_setup  # noqa: E402
+
+ADD_PREFIXES = {
+    "uv": ("uv", "add", "--dev"),
+    "poetry": ("poetry", "add", "--group", "dev"),
+    "pdm": ("pdm", "add", "-dG", "dev"),
+    "pnpm": ("pnpm", "add", "-D"),
+    "yarn": ("yarn", "add", "-D"),
+    "bun": ("bun", "add", "-d"),
+}
+
+
+def _managers(language: str) -> tuple:
+    return tuple(
+        (lockfiles, ADD_PREFIXES[command[0]])
+        for lockfiles, command in checkout_setup.lockfile_precedence(language)
+        if command[0] in ADD_PREFIXES
+    )
+
+
 LANGUAGES = (
     {
         "language": "python",
         "manifest": "pyproject.toml",
-        "packages": ("hypothesis", "mutmut"),
-        "managers": (
-            (("uv.lock",), ("uv", "add", "--dev")),
-            (("poetry.lock",), ("poetry", "add", "--group", "dev")),
-            (("pdm.lock",), ("pdm", "add", "-dG", "dev")),
-        ),
+        "packages": checkout_setup.tools_of("python"),
+        "managers": _managers("python"),
         "fallback": None,
     },
     {
         "language": "javascript",
         "manifest": "package.json",
-        "packages": ("fast-check", "@stryker-mutator/core"),
-        "managers": (
-            (("pnpm-lock.yaml",), ("pnpm", "add", "-D")),
-            (("yarn.lock",), ("yarn", "add", "-D")),
-            (("bun.lock", "bun.lockb"), ("bun", "add", "-d")),
-        ),
+        "packages": checkout_setup.tools_of("javascript"),
+        "managers": _managers("javascript"),
         "fallback": ("npm", "install", "--save-dev"),
     },
     {
@@ -53,10 +67,10 @@ LANGUAGES = (
     },
 )
 
-JS_DEPENDENCY_TABLES = ("dependencies", "devDependencies", "optionalDependencies", "peerDependencies")
-PREFERENCE_KEY = "verification_tools_prompt"
+JS_DEPENDENCY_TABLES = checkout_setup.JS_DEPENDENCY_TABLES
+PREFERENCE_KEY = checkout_setup.PREFERENCE_KEY
 INSTALL_TIMEOUT_SECONDS = 600
-REQUIREMENT_NAME_RE = re.compile(r"[A-Za-z0-9._-]+")
+REQUIREMENT_NAME_RE = checkout_setup.REQUIREMENT_NAME_RE
 
 
 @dataclass(frozen=True)
@@ -67,26 +81,9 @@ class Plan:
     blocker: str | None
 
 
-def preferences_file() -> Path:
-    return Path(os.environ.get("HARNESS_PREFERENCES_FILE") or Path.home() / ".harness" / "preferences.json")
-
-
-def _normalize(name: str) -> str:
-    return re.sub(r"[-_.]+", "-", name).lower()
-
-
-def _python_names(node, found: set[str]) -> None:
-    if isinstance(node, str):
-        match = REQUIREMENT_NAME_RE.match(node)
-        if match:
-            found.add(_normalize(match.group()))
-    elif isinstance(node, dict):
-        for key, value in node.items():
-            _python_names(key, found)
-            _python_names(value, found)
-    elif isinstance(node, list):
-        for value in node:
-            _python_names(value, found)
+preferences_file = checkout_setup.preferences_file
+_normalize = checkout_setup.normalize
+_python_names = checkout_setup.python_names
 
 
 def _present_packages(spec: dict, target: Path) -> set[str] | str:
@@ -103,11 +100,7 @@ def _present_packages(spec: dict, target: Path) -> set[str] | str:
             data = json.loads(text)
             if not isinstance(data, dict):
                 return f"{spec['manifest']} top level is not an object"
-            names: set[str] = set()
-            for table in JS_DEPENDENCY_TABLES:
-                if isinstance(data.get(table), dict):
-                    names.update(data[table])
-            return names
+            return checkout_setup.javascript_names(data)
         if language == "go":
             return {package for package in spec["packages"] if spec["marker"] in text}
         data = tomllib.loads(text)

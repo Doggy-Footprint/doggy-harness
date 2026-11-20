@@ -91,6 +91,14 @@
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/spec_notice.py\""
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/bin/checkout_setup.py\" hook"
+          }
+        ]
       }
     ],
     "PostToolUse": [

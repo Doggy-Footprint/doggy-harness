@@ -25,6 +25,10 @@ python3 installer/harness.py doctor <target>
 
 - 이미 설치된 저장소(`.harness/manifest.json` 있음)는 `install` 대신 `update`를 씁니다.
 - 언어(Python, JS/TS, Go, Rust)를 감지해 fuzzing/mutation 도구가 없으면 설치 여부를 `[y/N/never]`로 묻습니다. `never`는 `~/.harness/preferences.json`에 저장됩니다. 도구를 설치하지 않았다면 spec의 `Mutation tool:`을 `none`으로 둡니다.
+- Claude Code 세션이 시작될 때 `.harness/bin/checkout_setup.py hook`이 실행됩니다. 프로젝트 manifest(`pyproject.toml`, `package.json`)에 선언된 검증 도구(`hypothesis`, `mutmut`, `fast-check`, `@stryker-mutator/core`)가 체크아웃에 없으면, lockfile이 있을 때만 백그라운드로 의존성을 설치합니다. 세션 시작은 설치를 기다리지 않습니다. 관리자와 명령은 `uv.lock`(`uv sync --frozen --inexact`), `poetry.lock`(`poetry install --no-interaction`), `pdm.lock`(`pdm install --frozen-lockfile`), `pnpm-lock.yaml`, `yarn.lock`, `bun.lock`/`bun.lockb`(각각 `install --frozen-lockfile`), `package-lock.json`(`npm ci`)입니다. lockfile과 manifest는 바꾸지 않으며, lockfile이 없으면 설치하지 않습니다. `node_modules`가 이미 있으면 `npm ci`는 그것을 지우고 다시 설치하므로 자동으로 실행하지 않고 직접 실행할 명령만 알려 줍니다(자동 설치가 실패한 경우의 재시도는 예외). 설치가 실패하면 다음 세션 시작 때 다시 시도하고, `doggy-workflow`의 phase 명령 출력에는 실행 중이거나 실패한 설치가 한 줄로 표시됩니다.
+- 상태는 `python3 .harness/bin/checkout_setup.py status`로 확인합니다. `--wait 초`를 붙이면 실행 중인 설치가 끝나거나 그 시간이 지날 때까지 기다립니다. 상태와 로그는 `.harness/sessions/checkout-setup/`(git이 무시함)에 저장됩니다.
+- 자동 설치는 `.harness/config.json`의 `"auto_install": false`로 끕니다(커밋하면 프로젝트의 모든 clone과 worktree에 적용). `never`로 답한 저장소도 설치하지 않습니다.
+- 같은 훅이 새 clone에서 `core.hooksPath`가 비어 있고 Git hook 관리자가 없으면 `.harness/git`으로 다시 설정합니다. 이 동작은 `auto_install`과 무관합니다.
 - `--model`은 `implementer`, `test-implementer`, `test-verifier`, `code-explorer`에 적용됩니다. 이후 `--model` 없이 `update`하면 저장된 값을 씁니다. `mutant-triager`는 항상 `haiku`를 씁니다. 설치된 모델과 다른 모델이 필요한 작업이면 workflow 브리프가 이유와 함께 제안합니다.
 - 파일이나 스킬 이름이 충돌하면 설치를 중단하고 경로를 알려 줍니다.
 

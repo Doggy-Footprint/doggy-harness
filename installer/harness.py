@@ -19,6 +19,7 @@ import verification_tools  # noqa: E402
 
 SOURCE_HARNESS = Path(__file__).resolve().parents[1] / "harness"
 sys.path.insert(0, str(SOURCE_HARNESS / "lib"))
+import checkout_setup  # noqa: E402
 import synced  # noqa: E402
 VERSION = (SOURCE_HARNESS / "VERSION").read_text(encoding="utf-8").strip()
 TARGETS_FILE = Path(
@@ -34,14 +35,9 @@ GITIGNORE_LINES = [
     ".harness/sessions/.running/",
     ".harness/sessions/rules-*.d/",
     ".harness/**/__pycache__",
+    ".harness/sessions/checkout-setup/",
 ]
-HOOK_MANAGER_FILES = [
-    ".husky/pre-commit",
-    "lefthook.yml",
-    "lefthook.yaml",
-    ".lefthook.yml",
-    ".pre-commit-config.yaml",
-]
+HOOK_MANAGER_FILES = checkout_setup.HOOK_MANAGER_FILES
 INFO_PATHS = [
     ".claude/CLAUDE.md",
     "CLAUDE.local.md",
@@ -1193,6 +1189,16 @@ def fact_record_dirs(target: Path) -> list[Path]:
     return sorted({target / "agent-docs" / "facts", docs_root / "facts"})
 
 
+def migrate_checkout_setup(target: Path, dry_run: bool) -> list[str]:
+    return [
+        "a Claude SessionStart hook installs the lockfile's dependencies in the background when a verification tool "
+        "declared in the project manifest is not present in the checkout, and sets core.hooksPath to .harness/git "
+        "in a clone that has no hook manager",
+        'set "auto_install": false in .harness/config.json to turn the automatic install off',
+        "no data is migrated",
+    ]
+
+
 def migrate_doggy_workflow(target: Path, dry_run: bool) -> list[str]:
     conflicts = []
     empty_dirs = []
@@ -1369,6 +1375,11 @@ MIGRATIONS = (
         "doggy-workflow rules are printed phase by phase by the phase command, which also issues the run id; "
         "brief markers survive redirections and heredocs",
         migrate_phase_rules,
+    ),
+    (
+        parse_version("0.54.0"),
+        "install declared verification tools and restore git hooks at session start",
+        migrate_checkout_setup,
     ),
 )
 
