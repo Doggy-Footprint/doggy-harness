@@ -79,6 +79,11 @@
       "command": "python3 \"{root}/.harness/hooks/spec_notice.py\""
     },
     {
+      "event": "SessionStart",
+      "targets": ["claude"],
+      "command": "python3 \"{root}/.harness/bin/checkout_setup.py\" hook"
+    },
+    {
       "event": "PreToolUse",
       "matcher": "Write|Edit|MultiEdit",
       "targets": ["claude"],

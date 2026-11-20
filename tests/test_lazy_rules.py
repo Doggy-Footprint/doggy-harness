@@ -43,8 +43,10 @@ KEPT_HEADINGS = [
     "# Task Guide",
     "## User Decision",
     "## Reporting to the User",
+    "## Editing Skills and Prompts",
     "## Commit & PR Messages",
 ]
+NO_BASE_COUNTERPART = ("## Rule Files", "## Editing Skills and Prompts")
 PRINCIPLE_NOTE = "Principles 2 and 3 will be replaced by a new approach; until then, following them is not required."
 MOVED = {
     "## Index & Staleness Management": "index-and-staleness.md",
@@ -123,7 +125,7 @@ class TestBlockSplit(unittest.TestCase):
         actual = split_sections(read_block(shared_install()))
         self.assertEqual([h for h, _ in actual], KEPT_HEADINGS)
         for heading, body in actual:
-            if heading == "## Rule Files":
+            if heading in NO_BASE_COUNTERPART:
                 continue
             with self.subTest(section=heading):
                 if heading == "## Principles":
@@ -299,8 +301,8 @@ class TestMigration0410(InstallerTestCase):
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         announced = re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE)
-        self.assertEqual(announced[-1], "0.53.0")
-        self.assertEqual(announced, ["0.41.0", "0.42.0", "0.43.0", "0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1", "0.50.0", "0.51.0", "0.52.0", "0.53.0"])
+        self.assertEqual(announced[-1], "0.54.0")
+        self.assertEqual(announced, ["0.41.0", "0.42.0", "0.43.0", "0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1", "0.50.0", "0.51.0", "0.52.0", "0.53.0", "0.54.0"])
         self.assertIn(f"migration 0.41.0: {S6_LABEL}", result.stdout)
         start = result.stdout.index("migration 0.41.0:")
         positions = []
@@ -309,7 +311,7 @@ class TestMigration0410(InstallerTestCase):
             positions.append(result.stdout.index(line, start))
         self.assertEqual(positions, sorted(positions))
         self.assertEqual((repo / "AGENTS.md").read_bytes(), agents_before)
-        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.53.0")
+        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.54.0")
         for name in MOVED.values():
             self.assertTrue((repo / INSTRUCTIONS / name).is_file(), name)
         block_headings = [h for h, _ in split_sections(read_block(repo))]
