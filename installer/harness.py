@@ -1199,6 +1199,18 @@ def migrate_checkout_setup(target: Path, dry_run: bool) -> list[str]:
     ]
 
 
+def migrate_project_map(target: Path, dry_run: bool) -> list[str]:
+    return [
+        "install the project-map skill (.agents/skills/project-map, .claude/skills/project-map): an HTML page, "
+        "outside the repository, of how the project or one area is built and the core decisions behind it, "
+        "followed by a short quiz in chat",
+        "doggy-workflow: the understanding round describes how the code the task touches works today and the "
+        "decisions already built into it, marked recorded or inferred; the approval brief says what changes from "
+        "there and whether each of those decisions is kept or revisited",
+        "no data is migrated",
+    ]
+
+
 def migrate_doggy_workflow(target: Path, dry_run: bool) -> list[str]:
     conflicts = []
     empty_dirs = []
@@ -1380,6 +1392,11 @@ MIGRATIONS = (
         parse_version("0.54.0"),
         "install declared verification tools and restore git hooks at session start",
         migrate_checkout_setup,
+    ),
+    (
+        parse_version("0.55.0"),
+        "project-map skill; doggy-workflow briefs explain the touched code as it stands and its inherited decisions",
+        migrate_project_map,
     ),
 )
 

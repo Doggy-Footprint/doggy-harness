@@ -73,7 +73,7 @@ class TestRename(Update0491Case):
         result = self.update(repo)
 
         self.assertEqual(result.returncode, 0, out(result))
-        self.assertEqual(self.version(repo), "0.54.0")
+        self.assertEqual(self.version(repo), "0.55.0")
         for rel in (f".claude/skills/{OLD_SKILL}", f".agents/skills/{OLD_SKILL}", f".harness/skills/{OLD_SKILL}"):
             with self.subTest(removed=rel):
                 self.assertFalse(os.path.lexists(repo / rel), rel)
@@ -193,7 +193,7 @@ class TestFactsMigration(Update0491Case):
         self.assertEqual(result.returncode, 0, out(result))
         self.assertFalse(os.path.lexists(repo / "agent-docs" / "facts"))
         self.assertIn("remove the empty agent-docs/facts/", result.stdout)
-        self.assertEqual(self.version(repo), "0.54.0")
+        self.assertEqual(self.version(repo), "0.55.0")
 
     def test_absent_facts_directory_proceeds_without_a_removal_line(self):
         repo = self.installed_0491()
@@ -215,7 +215,7 @@ class TestFactsMigration(Update0491Case):
 
         self.assertEqual(result.returncode, 0, out(result))
         self.assertEqual(facts.read_text(), FACTS_MD)
-        self.assertEqual(self.version(repo), "0.54.0")
+        self.assertEqual(self.version(repo), "0.55.0")
         verify = self.run_verify_rules(repo)
         self.assertEqual(verify.returncode, 0, verify.stdout + verify.stderr)
 
@@ -224,7 +224,7 @@ class TestFactsMigration(Update0491Case):
         entries = [entry for entry in module.MIGRATIONS if entry[0] == module.parse_version("0.51.0")]
         self.assertEqual(len(entries), 1, entries)
         self.assertIs(entries[0][2], module.migrate_doggy_workflow)
-        self.assertEqual(module.MIGRATIONS[-1][0], module.parse_version("0.54.0"))
+        self.assertEqual(module.MIGRATIONS[-1][0], module.parse_version("0.55.0"))
 
 
 class TestInstalledRules(InstallerTestCase):
@@ -251,9 +251,9 @@ class TestInstalledRules(InstallerTestCase):
         result = self.run_verify_rules(repo)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    def test_fresh_install_links_only_the_new_skill(self):
+    def test_fresh_install_links_only_the_current_skills(self):
         repo = self.install()
-        self.assertEqual(sorted(path.name for path in (repo / ".claude" / "skills").iterdir()), [NEW_SKILL])
+        self.assertEqual(sorted(path.name for path in (repo / ".claude" / "skills").iterdir()), [NEW_SKILL, "project-map"])
         self.assertFalse((repo / ".harness" / "git" / "warn_retrospective.py").exists())
         self.assertFalse(os.path.lexists(repo / "agent-docs" / "facts"))
 

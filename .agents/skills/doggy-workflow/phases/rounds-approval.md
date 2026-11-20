@@ -1,5 +1,5 @@
 **3. Approval brief.** After drafting the spec and searching try-n-fail, present, in this order:
-- *What will exist*: the result as a thing, in the terms of Voice, and what it deliberately leaves out.
+- *What will exist*: the result as a thing, in the terms of Voice, and what it deliberately leaves out. Start from *How it works today* in the understanding round: what changes (parts added or rewired, state moved or reshaped), and for each inherited decision the work touches, whether it is kept or revisited and why.
 - *Your decisions*: the user's choice, your pick and reason as written in the picks file before the user answered, what differs, and what the choice costs and rules out. When they differ, ask what the user's choice rested on, and propose a `facts.md` entry when the answer is a fact.
 - *Decided for you*: the engineer calls only. For each: the choice, what it trades away, the option not taken and the state of the world in which that option wins, and how to change it later. Close with one sentence saying that the remaining defaults (conventions followed, thresholds, coverage targets, test techniques, the installed role models) are recorded in the spec's `# Assumptions and Defaults` and that approval covers them.
 - *Still open*: each open question, what will settle it, and what the work does until then.
