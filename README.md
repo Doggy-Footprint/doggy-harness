@@ -38,7 +38,7 @@ python3 installer/harness.py doctor <target>
 | --- | --- |
 | `.harness/` | 버전별 payload, 스크립트, 소유 파일의 SHA manifest |
 | `AGENTS.md`, `CLAUDE.md` | 프로젝트 정의와 관리형 문서 규칙 (`CLAUDE.md`는 `@AGENTS.md` 참조) |
-| `.agents/skills/`, `.claude/skills/` | `doggy-workflow` |
+| `.agents/skills/`, `.claude/skills/` | `doggy-workflow`, `project-map` |
 | `.claude/agents/` | `implementer`, `test-implementer`, `test-verifier`, `mutant-triager`, `code-explorer` |
 | `.claude/settings.json` | 세션·서브에이전트·도구 훅. `gh pr create`/`gh pr edit` 뒤에는 PR 설명을 5분 standup 소개 기준으로 쓰라고 상기시킴. 규칙 주입 훅(`rule_injection.py`)은 `agent-docs/`의 규칙 디렉터리에 세션 처음으로 Write/Edit/MultiEdit 하면 그 규칙 파일 본문을 컨텍스트로 추가하고, spec 알림 훅(`spec_notice.py`)은 세션 시작 때 열린 spec, 복원되지 않은 seed, 남은 서브에이전트 표시를 알림 |
 | `.harness/bin/records.py` | `stale <path>`는 기록을 `stale/`로 옮기고 index 항목을 `stale.md`로 옮김, `synced-refresh <id>`는 동기화 주석의 count·code_hash·version·태그를 갱신 |
@@ -59,6 +59,7 @@ python3 installer/harness.py doctor <target>
 기능·수정 수준의 구현과 디버깅에는 [`doggy-workflow`](harness/skills/doggy-workflow/SKILL.md)를 씁니다. 단순 문서 수정이나 이름 변경에는 쓰지 않습니다.
 
 1. **Spec**: 메인 에이전트가 이해한 내용과 저장소에 없는 사실에 대한 질문을 제시하고, 사용자가 직접 정할 결정은 선택지와 추천 없이 묻습니다. 그 뒤 `agent-docs/specs/`에 spec을 쓰고 채팅 브리프로 승인받습니다.
+   - 첫 브리프는 작업이 건드리는 코드가 지금 어떻게 동작하는지(구성 요소와 연결, 상태가 있는 곳, 실패 경로)와 그 코드에 이미 들어 있는 결정을 설명합니다. 각 결정은 얻는 것, 치르는 것, 성립하지 않게 되는 조건과 함께, 근거가 기록에 있으면 *recorded*, 코드로만 보이면 *inferred*로 표시합니다. 승인 브리프는 거기서 무엇이 바뀌는지와 각 결정을 유지하는지 다시 정하는지를 말합니다.
    - 브리프는 코드·변수명 같은 프로젝트 세부는 덜고, 결과물의 형상과 엔지니어로서 책임질 결정(무엇을 골랐고, 무엇을 포기했고, 언제 틀린 선택이 되는지)을 설명합니다. 형상을 바꾸지 않는 기본값은 spec에 남깁니다.
    - 브리프 끝에는 핵심 trade-off, 결정, 최종 형태를 묻는 퀴즈가 붙습니다. 답이 spec과 다르면 오해인지 의도 불일치인지 가려 설명하거나 spec을 고칩니다. 사용자는 건너뛸 수 있고, 질문과 답은 어디에도 저장하지 않습니다.
    - spec에는 고려한 대안(`# Alternatives`)과 아직 모르는 것(`# Open Questions`)을 적습니다.
@@ -66,6 +67,8 @@ python3 installer/harness.py doctor <target>
 3. **검증**: `test-verifier`가 증거를 감사하고, 메인 에이전트가 결함을 주입해 테스트가 잡는지 확인합니다. 검증 호출은 실행당(여러 세션 작업은 step당) 최대 2회입니다.
 4. **보관**: 끝난 spec은 `agent-docs/spec-logs/`로 옮기고, 진행 중인 spec은 남깁니다. 보관된 spec은 수정하지 않습니다.
 5. **마무리 보고**: 세션을 마칠 때마다 실제로 만들어진 형상, 작업 중 내린 결정, 잘못된 시도와 실수를 채팅으로 보고하고 퀴즈로 마칩니다. 회고는 저장하지 않습니다. 저장되는 것은 사용자가 승인한 `facts.md` 항목과 try-n-fail 기록뿐입니다.
+
+AI 에이전트가 대부분 쓴 코드를 다시 이해해야 할 때는 [`project-map`](harness/skills/project-map/SKILL.md)을 씁니다. 프로젝트 전체나 한 영역의 구조도, 주요 경로, 상태가 있는 곳, 핵심 결정과 trade-off(기록에 근거가 있는지, 코드에서 추론했는지 포함)를 HTML 페이지 하나로 만들어 저장소 밖(세션 scratchpad)에 두고, Claude artifact로 게시할 수 있으면 게시합니다. 이어서 채팅으로 짧은 퀴즈를 냅니다. 저장소에는 아무것도 쓰지 않고, 퀴즈 답에서 저장소가 보여 주지 않는 사실이 나오면 `facts.md` 항목을 제안만 합니다.
 
 한 세션에 끝나지 않는 작업은 spec 하나를 step으로 나눕니다. 검증 obligation이 15개 이상이거나(`.harness/config.json`의 `step_split_obligations`로 변경), 앞부분을 만들어 봐야 뒷부분이 정해지거나, 세션 밖의 일을 기다려야 하거나, 세션이 끝내지 못하고 멈췄을 때 권고합니다. 각 step은 위 2~3을 따로 통과합니다. 이 경우에만 spec에 `# Steps`와 `# Session Memory`(`## Failed Attempts & Reasons`, `## Decisions & Reasons & Alternatives`, `## Unresolved Questions & Uncertainties`)를 두어 다음 세션이 이어받고, 작업이 끝나면 spec과 함께 보관됩니다.
 
