@@ -27,3 +27,13 @@ File: 44ec20b03e6a0185-defect-correction-telemetry.md
 Summary: Telemetry should record errors corrected by test-verifier findings (test vs implementation defect) and by mutations; marker design and the meaning of mutation-corrected not decided; not started
 Related Files: harness/bin/workflow_marker.py, harness/lib/telemetry.py, harness/skills/doggy-workflow/SKILL.md, analytics/importer.py
 Related Symbols: verifier_result, verification_result, workflow_phase
+---
+File: 31b266665f55f0b4-zero-kill-test-check.md
+Summary: Owner proposed an LLM check of tests that kill zero mutants, to report removal candidates and bound test count; measure-first vs rule-first not chosen; not started
+Related Files: harness/skills/doggy-workflow/phases/workflow-6-triage.md, harness/skills/doggy-workflow/phases/verification-mutation-tool.md, harness/agents/mutant-triager.md, harness/agents/test-verifier.md, harness/bin/seed.py
+Related Symbols: mutant-triager, seed
+---
+File: 8f0d4c2a6b1e9a37-share-node-modules-across-worktrees.md
+Summary: Owner asked whether a local worktree can reuse the main checkout node_modules instead of an 811 MB copy per worktree; split from the checkout-setup spec; symlink behavior of Stryker and vitest not checked; not started
+Related Files: installer/verification_tools.py, agent-docs/spec-logs/37f43a7fb2bc2bcf-checkout-setup-at-session-start.md
+Related Symbols: checkout_setup, LANGUAGES
