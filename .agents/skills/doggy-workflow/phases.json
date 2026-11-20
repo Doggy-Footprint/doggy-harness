@@ -52,7 +52,8 @@
     "verification-audit-state",
     "workflow-5-verify",
     "workflow-6-triage",
-    "workflow-8-stop"
+    "workflow-8-stop",
+    "subagent-model"
   ],
   "amend": [
     "workflow-7-correct"
