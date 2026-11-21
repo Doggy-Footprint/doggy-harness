@@ -1,0 +1,19 @@
+{
+  "id": "tokeneconomizer-portable-facts",
+  "repo": "https://github.com/microsoft/TokenEconomizer.git",
+  "commit": "1bfeccdcecf48333b22762ad1dd9e36c6dc065df",
+  "language": "Python",
+  "repo_created": "2026-10-13",
+  "stars_at_selection": 7807,
+  "license": "MIT",
+  "issue": 193,
+  "cache_setup": [
+    ["sandbox-exec", "-f", "{eval}/setup.sb", "-D", "WORK={work}", "-D", "HOME={home}", "mkdir", "-p", "{work}/tmp"],
+    ["sandbox-exec", "-f", "{eval}/setup.sb", "-D", "WORK={work}", "-D", "HOME={home}", "env", "UV_CACHE_DIR={work}/uv-cache", "UV_PYTHON_INSTALL_DIR={work}/uv-python", "TMPDIR={work}/tmp", "{home}/.local/bin/uv", "venv", "--python", "3.12", ".venv"],
+    ["sandbox-exec", "-f", "{eval}/setup.sb", "-D", "WORK={work}", "-D", "HOME={home}", "env", "UV_CACHE_DIR={work}/uv-cache", "UV_PYTHON_INSTALL_DIR={work}/uv-python", "TMPDIR={work}/tmp", "{home}/.local/bin/uv", "pip", "install", "--python", ".venv/bin/python", "--compile-bytecode", "click==8.5.1", "coverage==7.17.3", "hypothesis==6.170.17", "iniconfig==2.3.1", "libcst==1.9.0", "linkify-it-py==2.2.0", "markdown-it-py==4.3.0", "mdit-py-plugins==0.7.0", "mdurl==0.1.2", "mutmut==3.8.1", "packaging==26.3", "platformdirs==4.14.8", "pluggy==1.7.0", "pygments==2.21.0", "pytest==9.2.0", "pyyaml==6.0.3", "rich==15.0.0", "setproctitle==1.3.8", "sortedcontainers==2.4.0", "textual==8.2.8", "typing-extensions==4.16.0"]
+  ],
+  "path_tools": ["{work}/src-cache/tokeneconomizer-portable-facts/.venv/bin"],
+  "test_command_hint": "python -m pytest tests experiments/tests",
+  "prompt": "/doggy-workflow 이 저장소의 이슈 #193을 해결해 주세요. 아래는 이슈 원문입니다.\n\n{issue}",
+  "max_turns": 40
+}

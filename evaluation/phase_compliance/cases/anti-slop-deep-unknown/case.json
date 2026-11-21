@@ -1,0 +1,16 @@
+{
+  "id": "anti-slop-deep-unknown",
+  "repo": "https://github.com/dmmulroy/anti-slop.git",
+  "commit": "13909c9e07590f5a85d93c62712259fe14a883f7",
+  "language": "TypeScript",
+  "repo_created": "2026-08-12",
+  "stars_at_selection": 6229,
+  "license": "MIT",
+  "issue": 77,
+  "cache_setup": [
+    ["pnpm", "install", "--frozen-lockfile", "--ignore-scripts", "--store-dir", "{work}/pnpm-store"]
+  ],
+  "path_tools": ["{work}/tools/node_modules/.bin"],
+  "prompt": "/doggy-workflow 이 저장소의 이슈 #77을 해결해 주세요. 아래는 이슈 원문입니다.\n\n{issue}",
+  "max_turns": 40
+}

@@ -1,0 +1,27 @@
+(version 1)
+; Dependency setup for an untrusted repository: network allowed, writes only under WORK,
+; reads of credential locations denied.
+(allow default)
+(deny file-write*)
+(allow file-write*
+  (subpath (param "WORK"))
+  (literal "/dev/null") (literal "/dev/tty") (regex #"^/dev/fd/") (literal "/dev/dtracehelper"))
+(deny file-read*
+  (subpath (string-append (param "HOME") "/.ssh"))
+  (subpath (string-append (param "HOME") "/.aws"))
+  (subpath (string-append (param "HOME") "/.gnupg"))
+  (subpath (string-append (param "HOME") "/.config"))
+  (subpath (string-append (param "HOME") "/.claude"))
+  (subpath (string-append (param "HOME") "/.docker"))
+  (subpath (string-append (param "HOME") "/.kube"))
+  (subpath (string-append (param "HOME") "/.gradle"))
+  (subpath (string-append (param "HOME") "/.m2"))
+  (subpath (string-append (param "HOME") "/Library/Keychains"))
+  (literal (string-append (param "HOME") "/.netrc"))
+  (literal (string-append (param "HOME") "/.git-credentials"))
+  (literal (string-append (param "HOME") "/.npmrc"))
+  (literal (string-append (param "HOME") "/.pypirc"))
+  (literal (string-append (param "HOME") "/.gitconfig")))
+; Offline variant: no IP network except loopback (Gradle daemon, test servers).
+(deny network-outbound (remote ip "*:*"))
+(allow network-outbound (remote ip "localhost:*"))

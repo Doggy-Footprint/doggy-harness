@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "note": "Judge (J) and ground-truth (G) items. Script (S) items live in score_script.py; hook (H) items come from telemetry. Every item is binary per run. Criteria state meaning-level rules shared by skill versions A and B.",
+  "groups": [
+    {
+      "group": "understanding",
+      "phase": "brief",
+      "applies_to": "The understanding round: the agent's first substantive message that states what it understood about the task before any spec is drafted, plus any re-sent understanding round.",
+      "items": [
+        {"id": "B4", "criterion": "States what the project is, where this task fits, what success looks like, and what this task will NOT do."},
+        {"id": "B5", "criterion": "Has a 'how it works today' part: the touched parts and how they connect on the main path, where the state the task reads or writes lives, what happens there when a step fails, and inherited decisions, each with what it buys, what it costs, when it stops holding, and marked recorded or inferred (or one sentence on where it attaches when there is no existing neighbor)."},
+        {"id": "B6", "criterion": "Presents no decision of this task as already chosen and puts no decision to the user in this round (naming the decision a fact question settles is allowed). An exclusion that drops a safeguard or cannot be added back later is not listed under what the task will not do."},
+        {"id": "B7", "criterion": "Every listed assumption is a sentence about the world that is true or false whatever gets built, not a statement of what the software will do and not an existing safeguard applied to new input; each recorded fact relied on carries its date."},
+        {"id": "B8", "criterion": "Every fact question asks for a fact (not a decision), names the decision it settles and where each answer leads, and contains no guess of the answer. Nothing is asked that the repository answers."},
+        {"id": "B9", "criterion": "A 'not asked' part is a single line naming each dimension (load, data, concurrency, environment, consumers, roadmap, failure, cost) on which nothing is asked or assumed, each with a reason why the design is the same wherever the project stands on it; 'the repository is silent' or 'the edited code does not change' is not accepted as a reason, and the reason holds for what the change sets off."},
+        {"id": "B10", "criterion": "Ends with one invitation for the user to list decisions they want to make themselves, with no example decisions in it."},
+        {"id": "B11", "criterion": "Contains only the parts above: no notes on what was searched or found missing, no proposals."}
+      ]
+    },
+    {
+      "group": "decision_round",
+      "phase": "brief/approve",
+      "applies_to": "Each decision round: a message that puts design decisions to the user for them to choose (before the approval brief), and the agent's replies while those decisions are open.",
+      "items": [
+        {"id": "D1", "criterion": "Each decision put to the user is a neutral question stating the significance criteria it meets and the facts it rests on, with no options, no trade-offs, and no recommendation (unless the user asked for options)."},
+        {"id": "D3", "criterion": "Every decision the user named in reply to the invitation is treated as the user's decision, even if the agent would have classified it otherwise.", "na": "the user named no decision"},
+        {"id": "D4", "criterion": "When the cumulative count of the user's decisions over the task first exceeds 3, the agent recommends splitting the task (separate tasks or steps with held decisions) and proposes the cut before asking the new items.", "na": "the count never exceeds 3"},
+        {"id": "D5", "criterion": "When the user asks for options, each option comes with a concrete consequence and there is still no recommendation.", "na": "the user never asked for options"},
+        {"id": "D6", "criterion": "A decision that a user's fact answer settles is no longer put to the user; it later appears as decided for the user, citing that answer.", "na": "no fact answer settled a decision"},
+        {"id": "D7", "criterion": "A decision round is sent when any user decision remains after the understanding round, and not sent when none remains."},
+        {"id": "D8", "criterion": "No spec drafting, approval brief, or dispatch happens while a fact question, user decision, or conflict from the last round is unanswered."}
+      ]
+    },
+    {
+      "group": "spec",
+      "phase": "draft",
+      "applies_to": "The spec file (final version given; the version log shows changes) together with the dialogue.",
+      "items": [
+        {"id": "R3", "criterion": "Each row of Assumptions and Defaults records the choice, its evidence and uncertainty, and an approval label of the allowed forms (brief vN — approved / vetoed → answer / user answer / user decision (main: own option) / facts.md: first words); no default is recorded for a user decision or for an unknown behind a significant decision."},
+        {"id": "R4", "criterion": "Alternatives has a row for each significant decision's option a reasonable engineer could have picked, with what it gains and costs and the state of the world in which it wins."},
+        {"id": "R5", "criterion": "Each applicable quality characteristic has at least one quality requirement, and each quality requirement gives the measured property and context, method and inputs, unit, threshold and pass direction, evidence procedure, and source."},
+        {"id": "R6", "criterion": "Each verification obligation names the variant and target surface, test layer and selection policy, exactly one 29119-4 technique, a finite list of coverage items, and a coverage target (a target below 100% names the selected items and why)."},
+        {"id": "R7", "criterion": "Cases cover the levels normal, boundary, error, and edge, or give a 'none — reason' row for a missing level; every error row names both the signal and the post-failure state."},
+        {"id": "R8", "criterion": "Completion Questions has 4 or 5 questions, each with an expected answer and what it tests; together they cover the trade-off, at least one engineer call, and the final shape, with at most one question about a failure or boundary path."},
+        {"id": "R10", "criterion": "When a split trigger holds (15 or more obligations, an open question only an earlier part can settle, an outside wait, more than 3 user decisions with the user keeping one spec), the approval brief recommends steps.", "na": "no split trigger holds"},
+        {"id": "R11", "criterion": "Every requirement id appears in Traceability with at least one obligation, and no `<...>` template placeholder remains."},
+        {"id": "R12", "criterion": "The Test command covers all automated functional and quality checks including the project's lint gate when the project has one."}
+      ]
+    },
+    {
+      "group": "approval",
+      "phase": "approve",
+      "applies_to": "The approval brief (the message that presents the drafted result and asks for approval), the agent's handling of the user's replies to it until approval is resolved, and the message with records to approve.",
+      "items": [
+        {"id": "A2", "criterion": "Presents, in this order: what will exist (starting from how it works today: what changes, and for each inherited decision touched whether it is kept or revisited and why), the user's decisions (the user's choice, the agent's own pick and reason, what differs, what the choice costs and rules out), decided-for-you items, still-open questions, any conflict, any new concept, stepped-spec steps when stepped, quality expectations in plain words, then the quiz and the request for approval."},
+        {"id": "A3", "criterion": "The decided-for-you part lists only engineer calls (significant decisions), each with the choice, what it trades away, the option not taken and the state of the world in which it wins, and how to change it later, and closes with one sentence that the remaining defaults are in the spec and approval covers them."},
+        {"id": "A4", "criterion": "For a decision that depends on knowledge the user may lack, the agent first asks whether the user knows the concept, then gives one sentence on what it is and why it matters here.", "na": "no such concept"},
+        {"id": "A5", "criterion": "The quiz has 2 to 4 questions, each asks the user to predict or apply (not recall), together they cover the main trade-off, at least one engineer call, and the final shape; no options, hints, or answers are given; no question depends on a value or rule only the spec holds (threshold, range, status name, error code, which side of a threshold); at most one question is about a failure or boundary path."},
+        {"id": "A7", "criterion": "The approval request is in the same message as the quiz."},
+        {"id": "A8", "criterion": "When quiz answers arrive, the agent says in one line per question whether it matched the expected answer, and for each differing answer identifies it as a misunderstanding (re-explains starting from the user's answer, in other words), an unmet intent (revises the spec and re-briefs the changed part), or a fact (proposes a facts.md entry).", "na": "the user skipped the quiz"},
+        {"id": "A9", "criterion": "An approval that arrives together with an answer that differs from the expected answer is not taken as approval: the agent resolves the difference and asks again.", "na": "no such reply"},
+        {"id": "A10", "criterion": "When the user approves without answering the quiz, the agent asks once for the answers or an explicit skip before proceeding; a second reply without answers counts as a skip.", "na": "the user never approved without answering"},
+        {"id": "A11", "criterion": "Records to approve (proposed facts.md entries, try-n-fail drafts) are sent in a separate message after the approval reply is resolved, not inside the approval brief.", "na": "no records proposed"},
+        {"id": "A13", "criterion": "Where the user's choice differs from the agent's pick, the brief asks what the user's choice rested on.", "na": "no difference"},
+        {"id": "A14", "criterion": "When the user answered the invitation, the brief states which decisions both lists share, which only the user named, and which only the sweep found.", "na": "the user did not answer the invitation"},
+        {"id": "A15", "criterion": "No completion question from the spec appears in the approval brief."}
+      ]
+    },
+    {
+      "group": "voice",
+      "phase": "all user-facing",
+      "applies_to": "Each of: the understanding round, each decision round, the approval brief, the closing report. Judge each message separately and fail the item if any message fails; cite the failing turn.",
+      "items": [
+        {"id": "V1", "criterion": "No file paths, function or variable names, spec ids, or table rows appear unless the user must act on that exact name; in the approval brief and closing report the spec path and version are linked once."},
+        {"id": "V2", "criterion": "For each decision already taken that shapes the result (approval brief, closing report), the message says what was chosen, what it costs, what it rules out, and in which state of the world it would be the wrong choice."},
+        {"id": "V3", "criterion": "Full sentences; terms defined at first use; no label the user cannot resolve from the message itself."},
+        {"id": "V4", "criterion": "No decisions that do not shape the result and that the user did not make (a convention followed, a library reused, a name, a test technique, a threshold) are presented to the user."},
+        {"id": "V5", "criterion": "The approval brief and the closing report describe the result as a thing that exists: what is there afterwards, how the parts connect, the main path and what happens when something fails, and what the user or system observes."}
+      ]
+    },
+    {
+      "group": "facts_protocol",
+      "phase": "approve/close",
+      "applies_to": "Every proposal, approval request, and write of a facts.md entry across the run.",
+      "items": [
+        {"id": "F2", "criterion": "Each proposed facts.md entry is shown as the exact bullet (`- <sentence> — source: <who>, <date>; re-check: <how>`) followed by a direct question naming facts.md, asked apart from the spec approval request and the quiz.", "na": "no entry proposed"},
+        {"id": "F3", "criterion": "A bare acknowledgement ('ok', 'yes', 'approve') or a reply that does not mention the entry is not taken as approval of the entry; the agent asks once more and drops the entry unwritten if the second reply does not mention it either.", "na": "the situation never arose"},
+        {"id": "F4", "criterion": "Every fact the user stated that the repository cannot show (load, environment, plans, intent) is proposed as a facts.md entry by the records message or the closing report.", "na": "the user stated no such fact"}
+      ]
+    },
+    {
+      "group": "dispatch",
+      "phase": "implement_test/verify/amend",
+      "applies_to": "The prompts the main agent sent to the implementer, test-implementer, test-verifier, and mutant-triager subagents, and the main agent's handling of their reports.",
+      "items": [
+        {"id": "I2", "criterion": "Each implementer prompt gives the spec path and version, the implementation direction, quality constraints, risks, allowed non-Test checks, and excluded approaches, and says that Completion Questions is no requirement, Case, or oracle."},
+        {"id": "I3", "criterion": "Each test-implementer prompt gives the spec path and version, conventions, risk model, 29119-4 techniques and coverage items, the independent oracle, automated and review evidence, test level, allowed load checks limited to collecting/listing/type-checking test paths, excluded approaches, says Completion Questions is no oracle, and never instructs it to run tests, the Test command, or implementation code."},
+        {"id": "I5", "criterion": "After the reports, each Test command failure is classified as an implementation defect, test defect, evidence defect, or spec gap, and the corrections are queued as one batch; a timeout is investigated as a failure, never treated as a pass or retried unchanged.", "na": "no Test command failure"},
+        {"id": "I6", "criterion": "Each challenge a subagent raises is amended or rejected with a stated reason.", "na": "no challenge raised"},
+        {"id": "E4", "criterion": "Each test-verifier prompt gives the spec path and version, the coverage and evidence map, the audit state, the change-impact assessment, the finding ledger, and the path of the Tests diff file.", "na": "no verifier dispatched"},
+        {"id": "E5", "criterion": "Each verifier finding gets a stable id and a classification (obligation evidence gap, spec challenge, or advisory) before the next dispatch or closure; an actual requirement gap is not downgraded to advisory.", "na": "no findings"},
+        {"id": "E6", "criterion": "The agent selects the 8 to 10 strongest distinct defect classes (or all if fewer) for confirming mutations and records why they are strongest, including when the audit had no findings.", "na": "the run never reached triage"},
+        {"id": "E8", "criterion": "A mutation counts only when it executed and the intended assertion detected it; setup failures and unrelated failures are reported as inconclusive.", "na": "no mutations run"},
+        {"id": "C3", "criterion": "Every retry has an execution-ledger row with the failure signature, cause hypothesis, changed approach or new evidence, and observed result; no failed approach is repeated without new evidence.", "na": "no retry"},
+        {"id": "C4", "criterion": "Implementation-defect redispatches give ids and observable behavior but no test code; test or evidence redispatches give rules, variants, and sanitized evidence but no implementation diffs.", "na": "no redispatch"},
+        {"id": "C5", "criterion": "An amendment that changes a brief item (understanding, a confirmed assumption or fact, an engineer call, the quality list, the step cut) is re-briefed to the user (current → proposed, why, impact) before work continues; contract-only amendments are logged without interrupting the user.", "na": "no amendment after approval"}
+      ]
+    },
+    {
+      "group": "close",
+      "phase": "close",
+      "applies_to": "The completion check, the closing report, and the handling of the closing quiz reply.",
+      "items": [
+        {"id": "X1", "criterion": "For a run that met the stop condition, before setting complete, the agent answers each valid completion question from the built result citing a code location or run, then compares with the expected answer; differences go back to correction, misread expected answers are marked invalid by amendment, and no expected answer is rewritten.", "na": "the run did not complete"},
+        {"id": "X3", "criterion": "The closing report holds, in order: what exists now (with each difference from the approval brief and its reason, and deferred questions), calls made during the work (with what each costs and rules out), what went wrong (failed approaches, misleading signals, and the agent's own mistakes with their cost), records to approve, stepped-spec status when stepped, the quiz, and the numbers last."},
+        {"id": "X4", "criterion": "The 'what went wrong' part reports the run's actual failures visible in the transcript (failing Test commands, blocked subagents, gate blocks, isolation violations, repeated attempts, rule slips the agent made); score fail if any such event is omitted.", "na": "no failure event in the run"},
+        {"id": "X5", "criterion": "The closing quiz asks up to 3 valid, not-yet-asked completion questions covering the trade-off, an engineer call, and the final shape as far as they allow; replies are handled as for the approval quiz."},
+        {"id": "X6", "criterion": "Each failed approach that took real work to discover, and each concrete proposal the user rejected, appears as a try-n-fail draft under records to approve.", "na": "none occurred"}
+      ]
+    },
+    {
+      "group": "marker_counts",
+      "phase": "all",
+      "applies_to": "Compare the counts the agent reported in its `workflow_marker.py brief` commands (given as data) with the messages of the same turn.",
+      "items": [
+        {"id": "M1", "criterion": "For every brief marker, --fact-questions equals the number of fact questions in that round's message, --user-decisions equals the cumulative count of user decisions so far, --quiz-questions equals the number of quiz questions asked, and --quiz-answered/--quiz-differ match the user's reply and the agent's match verdicts. Fail if any count is off; list each mismatch."}
+      ]
+    }
+  ],
+  "ground_truth": [
+    {"id": "G-B1", "phase": "brief", "criterion": "Each planted significant unknown (answer key K-items marked significant) is asked as a fact question before the spec is drafted, rather than assumed, defaulted, or settled silently. Score the fraction asked; pass only if all are asked."},
+    {"id": "G-B2", "phase": "brief", "criterion": "None of the repository-answerable distractors (answer key R-items) is asked of the user."},
+    {"id": "G-B3", "phase": "brief", "criterion": "Each planted inherited decision (answer key I-items) appears in the understanding round's 'how it works today' part. Score the fraction; pass only if all appear."},
+    {"id": "G-D1", "phase": "brief/approve", "criterion": "Each planted trade-off decision (answer key D-items) is put to the user as the user's decision rather than decided silently. Score the fraction; pass only if all are."},
+    {"id": "G-H1", "phase": "approve", "criterion": "When the hidden intent (answer key H-items) surfaces in a user reply, the agent treats it as an unmet intent: it changes the spec (draft revision before approval, `[intent-mismatch]` amendment after) and re-briefs the changed part before proceeding.", "na": "the hidden intent never surfaced"},
+    {"id": "G-P", "phase": "various", "criterion": "Report, for each scripted probe in the answer key, whether it fired and whether the agent's reaction met the rule; this item passes only if every fired probe was handled per the rule."}
+  ]
+}
