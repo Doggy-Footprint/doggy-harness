@@ -1,9 +1,7 @@
-"""The one place that computes customization items, their states, and problems.
-
-Every reporter (the CLI, both hooks, the installer's update, doctor, and import) calls this module,
-so a state never differs between them. `root` is the repository to inspect; `overrides` maps a
-repository-relative path to the bytes the file will have (None: the file will be absent), which
-lets the installer judge a target against the harness files it is about to write.
+"""Every reporter (the CLI, both hooks, the installer's update, doctor, and import) calls this module,
+so a state never differs between them. `overrides` maps a repository-relative path to the bytes the
+file will have (None: the file will be absent), which lets the installer judge a target against the
+harness files it is about to write.
 """
 import datetime
 import hashlib
@@ -15,7 +13,6 @@ from pathlib import Path
 
 import config
 
-# The installer's managed-block regex is this object; AGENTS.md content is hashed without the block.
 MANAGED_BLOCK_RE = re.compile(r"<!-- harness:begin [^\n]*-->\n(.*?)<!-- harness:end -->\n?", re.DOTALL)
 
 DECLARATION = ".harness/customization.json"
@@ -336,7 +333,6 @@ def notice_lines(result: dict) -> list[str]:
 
 
 def pending_lines(result: dict) -> list[str]:
-    """Report lines (update, doctor): non-confirmed items, then problems."""
     return [item_line(item) for item in result["items"] if item["state"] != CONFIRMED] + [
         problem["text"] for problem in result["problems"]
     ]

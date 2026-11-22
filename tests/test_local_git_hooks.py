@@ -25,7 +25,6 @@ class HookDispatchCase(CustomizationCase):
         return "\n".join(lines) + "\n"
 
     def install_hooks(self, repo, name, local, private, record_stdin=False):
-        """local: None, an exit code, or 'plain' for a file without the executable bit; private: None or exit code."""
         if local == "plain":
             self.write(repo, f".harness/local/git/{name}", self.script("local", 0, record_stdin), 0o644)
         elif local is not None:

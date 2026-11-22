@@ -1844,7 +1844,6 @@ def apply_owned_files(target: Path, owned: dict, old_manifest_files: dict, dry_r
 
 
 def _group_is_harness(group: dict) -> bool:
-    # A group that also runs something under .harness/local/ is the repository's own.
     commands = [h.get("command", "") for h in group.get("hooks", [])]
     return any("/.harness/" in c for c in commands) and not any("/.harness/local/" in c for c in commands)
 

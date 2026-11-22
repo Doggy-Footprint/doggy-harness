@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Checks harness/customization.json against the payload and against its version at HEAD.
-
-Not installed into target repositories. Exit 1 when a check fails; each failure is one line.
-"""
+"""Not installed into target repositories."""
 import argparse
 import json
 import re
@@ -24,8 +21,6 @@ def git(*args: str) -> subprocess.CompletedProcess:
 
 
 class Tree:
-    """Files as the working tree has them, or as the index has them."""
-
     def __init__(self, staged: bool):
         self.staged = staged
 
@@ -81,7 +76,6 @@ def valid_declaration(data) -> bool:
 
 
 def mapped(path: str) -> str:
-    """Installed path -> payload path."""
     agent = re.fullmatch(r"\.claude/agents/(.+\.md)", path)
     if agent:
         return f"harness/agents/{agent.group(1)}"
@@ -99,7 +93,6 @@ def phase_fragments(phases, name: str) -> list[str]:
 
 
 def point_compare_paths(point: dict, phases, with_name: bool = False) -> list[tuple]:
-    """(payload path, installed-style path[, name]) for every compare path of a point, names substituted."""
     names = point.get("names") or [None]
     result = []
     for name in names:
@@ -193,7 +186,6 @@ def structure_failures(tree: Tree, declaration: dict) -> list[str]:
 
 
 def removed_items(old: dict, new: dict) -> list[tuple[str, str, str]]:
-    """(description, retired path that covers it, kind) for each id, name, and key present at HEAD and gone now."""
     now = {point["id"]: point for point in new["points"]}
     removed = []
     for point in old["points"]:

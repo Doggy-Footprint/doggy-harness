@@ -5,7 +5,7 @@ import os
 import sys
 from pathlib import Path
 
-# A hook must never fail the tool call or the subagent start, so an import error also exits 0 silently.
+# A hook must never fail the tool call or the subagent start: any error, at import or later, prints nothing and exits 0.
 try:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
     import config  # noqa: E402
@@ -99,7 +99,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    # A hook must never fail the tool call or the subagent start: any internal error prints nothing and exits 0.
     try:
         main()
     except BaseException:

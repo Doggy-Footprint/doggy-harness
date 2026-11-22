@@ -1,5 +1,3 @@
-# Sourced by the hooks in this directory; not a git hook itself.
-# harness_dispatch NAME ARGS...: runs .harness/local/git/NAME, then the clone-private hook, with the same arguments.
 # Paths come from this file's own directory, never from the work tree's top level: git can run a hook
 # of one checkout with the current directory in another (git worktree add), whose commit lacks these files.
 harness_git_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

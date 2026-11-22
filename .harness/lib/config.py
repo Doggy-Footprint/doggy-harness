@@ -6,7 +6,6 @@ REPO_ROOT = _HARNESS_DIR.parent
 
 
 def read_override(path: Path) -> tuple[dict | None, str | None]:
-    """Return (override, problem). A file that is not a JSON object yields no override and a reason."""
     if not path.is_file():
         return None, None
     try:
