@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os
 import secrets
 import sys
 from pathlib import Path
@@ -38,6 +39,10 @@ RULES_MISSING = (
     "The rules of this phase could not be read. Read the files that "
     ".harness/skills/doggy-workflow/phases.json lists for it, in .harness/skills/doggy-workflow/phases/.\n"
 )
+LOCAL_PHASE_DIR = ".harness/local/doggy-workflow"
+LOCAL_RULES_HEADING = "## Project rules for this phase"
+LOCAL_RULES_INTRO = "From {path}. Where these disagree with the harness rules above, follow these."
+LOCAL_RULES_UNREADABLE = "{path} could not be read; read it yourself."
 PHASE_USAGE = (
     "doggy-workflow: unknown phase arguments. Use `phase --phase brief`, "
     "`phase --run-id ID --phase draft|approve|implement_test|verify|amend|step|close|resume` "
@@ -176,6 +181,20 @@ def _phase_rules(phase: str, facts: dict) -> tuple[str, list[str]]:
         return RULES_MISSING, []
 
 
+def _local_rules(phase: str) -> str:
+    rel = f"{LOCAL_PHASE_DIR}/{phase}.md"
+    path = config.REPO_ROOT / rel
+    if not os.path.lexists(path):
+        return ""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, ValueError):
+        text = LOCAL_RULES_UNREADABLE.format(path=rel)
+    if text and not text.endswith("\n"):
+        text += "\n"
+    return f"\n{LOCAL_RULES_HEADING}\n{LOCAL_RULES_INTRO.format(path=rel)}\n\n{text}"
+
+
 def _phase_markers(phase: str, run_id: str | None, facts: dict) -> tuple[str, list[str]]:
     try:
         markers = json.loads((SKILL_DIR / "markers.json").read_text(encoding="utf-8"))
@@ -248,7 +267,7 @@ def _phase(args) -> None:
     if left_out or without_commands:
         lines.append(LEFT_OUT.format(parts=", ".join(left_out + without_commands)))
     lines.extend(_checkout_setup_lines(args.again))
-    _write("\n".join(lines) + "\n\n" + rules + markers)
+    _write("\n".join(lines) + "\n\n" + rules + _local_rules(args.phase) + markers)
 
 
 def main(argv: list[str] | None = None) -> int:

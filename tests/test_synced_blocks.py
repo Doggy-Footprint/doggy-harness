@@ -486,7 +486,7 @@ class TestUpdateFrom0420(SyncedCase):
         return repo, files, (p_a, p_b)
 
     def update(self, repo):
-        return run_installer("update", str(repo), "--no-ci", "--no-commit", input="y\n" * 20, exact=True)
+        return run_installer("update", str(repo), "--no-ci", "--no-commit", input="y\n" * 40, exact=True)
 
     def test_update_announces_the_migration_last_with_the_plan_lines_in_order(self):
         repo, _, _ = self.populate()
@@ -494,7 +494,7 @@ class TestUpdateFrom0420(SyncedCase):
         result = self.update(repo)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         announced = re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE)
-        self.assertEqual(announced, ["0.43.0", "0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1", "0.50.0", "0.51.0", "0.52.0", "0.53.0", "0.54.0", "0.55.0", "0.55.1"], result.stdout)
+        self.assertEqual(announced, ["0.43.0", "0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1", "0.50.0", "0.51.0", "0.52.0", "0.53.0", "0.54.0", "0.55.0", "0.55.1", "0.56.0"], result.stdout)
         start = result.stdout.index("migration 0.43.0:")
         positions = []
         for line in S11:
@@ -502,7 +502,7 @@ class TestUpdateFrom0420(SyncedCase):
             positions.append(result.stdout.index(line, start))
         self.assertEqual(positions, sorted(positions))
         self.assertEqual((repo / "AGENTS.md").read_bytes(), agents)
-        self.assertEqual(json.loads((repo / ".harness" / "manifest.json").read_text())["version"], "0.55.1")
+        self.assertEqual(json.loads((repo / ".harness" / "manifest.json").read_text())["version"], "0.56.0")
         doctor = run_installer("doctor", str(repo))
         self.assertEqual(doctor.returncode, 0, doctor.stdout + doctor.stderr)
 

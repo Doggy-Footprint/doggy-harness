@@ -1,10 +1,10 @@
 # Project Definition
 
-AI agent harness for Claude Code, installable into any git repository.
-Codex is unsupported: `.codex/` files are still generated best-effort, but Codex subagents inherit the parent session's sandbox, permissions, and MCP servers, so per-agent restrictions are enforced only in Claude Code.
-It ships documentation rules (the managed block below), the doggy-workflow skill and helper skills, sub-agents, agent hooks, git hooks, and a CI comment check.
-Source: `harness/` (payload), `installer/harness.py` (install / update / doctor), `tests/`, `evaluation/` (not installed: archived harness evaluation experiments `selfcheck/` and `reference_mutation/`, `brief_facts/`, which measures the fact questions of the doggy-workflow brief, and `workflow_scenes/`, which measures how far a run follows the doggy-workflow rules). This repo installs itself into `.harness/` for dogfooding.
-Edit `harness/`, never `.harness/` or the generated `.claude/`, `.codex/`, `.agents/` files; then run `python3 installer/harness.py update . --no-commit` so the source and installed copy land in one commit. `update` MUST provide version-by-version migration steps.
+This harness, installed into a git repository, makes Claude Code agree on the work with the user before building it with workflow to follow
+Before a feature or fix, the agent and the user agree on a written spec: what to build, which choices are the user's, and how it will be checked.
+Separate agents then write the code and the tests without seeing each other's work, and another agent checks the tests against the spec.
+Across sessions, the agent keeps only what the user approved: facts about the project, failed attempts, and the spec of unfinished work.
+Hooks and git checks block a few rule breaks in code; the rest are rules the agent is told to follow.
 
 <!-- harness:begin -->
 @.harness/instructions/harness-block.md

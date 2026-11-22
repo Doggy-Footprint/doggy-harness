@@ -6,6 +6,8 @@ from test_installer import REPO_ROOT
 
 BASE_0420 = "611e1f635fe547798a5a24512249cb2f0743f156"
 BASE_0491 = "4a0980791249eaea54a6201007c19ecc98fb87fa"
+BASE_0470 = "7c1e04db4e55af0c0ea24e6460b3f385fcd1bd8e"
+BASE_0551 = "5cba48cb0dfa923b19e9e808ca5cb63cb3c3ab3a"
 _SOURCES = {}
 
 

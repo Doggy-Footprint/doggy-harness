@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_root="$(git rev-parse --show-toplevel)"
-harness_dir="$repo_root/.harness"
+harness_git_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+harness_dir="$(dirname "$harness_git_dir")"
 
 if command -v python3 >/dev/null 2>&1; then
+  config_status=0
+  python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import config; sys.exit(3 if config.read_override(config.REPO_ROOT / ".harness" / "config.json")[1] else 0)' \
+    "$harness_dir/lib" || config_status=$?
+  if [ "$config_status" -eq 3 ]; then
+    echo "pre-commit: .harness/config.json is not a JSON object; harness defaults are used" >&2
+  fi
   python3 "$harness_dir/git/warn_new_comments.py" --staged || true
   python3 "$harness_dir/git/verify_rules.py"
 else
   echo "pre-commit: python3 not found, skipping harness rule verification" >&2
 fi
 
-common_dir="$(git rev-parse --git-common-dir)"
-local_hook="$common_dir/hooks/pre-commit"
-if [ -x "$local_hook" ]; then
-  exec "$local_hook" "$@"
-fi
+. "$harness_git_dir/hook_dispatch.sh"
+harness_dispatch pre-commit "$@"

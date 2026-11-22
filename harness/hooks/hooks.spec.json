@@ -88,6 +88,22 @@
       "matcher": "Write|Edit|MultiEdit",
       "targets": ["claude"],
       "command": "python3 \"{root}/.harness/hooks/rule_injection.py\""
+    },
+    {
+      "event": "SessionStart",
+      "targets": ["claude"],
+      "command": "python3 \"{root}/.harness/hooks/customization_notice.py\""
+    },
+    {
+      "event": "PostToolUse",
+      "matcher": "Write|Edit|MultiEdit",
+      "targets": ["claude"],
+      "command": "python3 \"{root}/.harness/hooks/customization_context.py\""
+    },
+    {
+      "event": "SubagentStart",
+      "targets": ["claude"],
+      "command": "python3 \"{root}/.harness/hooks/customization_context.py\""
     }
   ]
 }

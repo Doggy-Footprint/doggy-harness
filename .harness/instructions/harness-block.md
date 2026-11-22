@@ -28,6 +28,10 @@ Every record under `agent-docs/` excludes:
 
 A hook writes `commit: <HEAD at last write>` into the frontmatter of every Markdown document under `agent-docs/` except `index.md` and `stale.md`. Do not edit it by hand. Before relying on a record, compare its `commit` with HEAD and re-check claims about code changed since then.
 
+## Customizations
+
+The project's instructions in `AGENTS.md` outside the harness block and the files the harness reads from `.harness/local/` are this repository's customizations. Where one disagrees with a harness rule, the customization is followed. A notice at session start lists each customization not yet confirmed against the current harness text. Before other work, tell the user about each, name each disagreement you find between it and the harness text, and run the confirm command the notice names only after the user confirms.
+
 ## Rule Files
 
 These rules live in separate files under `.harness/instructions/`. A hook adds a rule's text to the session at its first Write or Edit in the rule's directory; read the file yourself before other work it covers. Hook and pre-commit messages name the file of a rule they find violated.

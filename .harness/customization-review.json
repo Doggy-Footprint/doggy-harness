@@ -1,0 +1,16 @@
+{
+  "items": {
+    ".harness/local/git/pre-commit": {
+      "compare": "6d92dec1b6f3f2ca43c96ba2e134479cfd64550e74dce907f66fcfafa9b67f40",
+      "confirmed": "2026-11-22",
+      "content": "26883a1ba706389161e946b8b9d78bdcc8d30ab6885da4d8e321f24ce7baa296",
+      "harness_version": "0.56.0"
+    },
+    "AGENTS.md": {
+      "compare": "2a85c8d8f29a18efacd7cc13c15b3d686d34fbc24f1a00d4d5910f83ecc34256",
+      "confirmed": "2026-11-22",
+      "content": "5a6cd8f1968477e1b4e96e8deb358442979ddcb67ef2c33a6b6a42962434e72e",
+      "harness_version": "0.56.0"
+    }
+  }
+}
