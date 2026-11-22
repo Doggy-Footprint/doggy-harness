@@ -18,7 +18,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    # A hook must never fail the session: any internal error prints nothing and exits 0.
+    # This hook runs at every session start in every installed repository: any error prints nothing and exits 0,
+    # so a harness bug never shows there as a hook error or as a partial notice in the agent's context.
     try:
         main()
     except BaseException:

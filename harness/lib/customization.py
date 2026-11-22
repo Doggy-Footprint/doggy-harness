@@ -1,7 +1,6 @@
-"""Every reporter (the CLI, both hooks, the installer's update, doctor, and import) calls this module,
-so a state never differs between them. `overrides` maps a repository-relative path to the bytes the
-file will have (None: the file will be absent), which lets the installer judge a target against the
-harness files it is about to write.
+"""Every reporter computes customization states with this module, so a state never differs between
+them. `overrides` maps a repository-relative path to the bytes the file will have (None: the file will
+be absent), which lets the installer judge a target against the harness files it is about to write.
 """
 import datetime
 import hashlib

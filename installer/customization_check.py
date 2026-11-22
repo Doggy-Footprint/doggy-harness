@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Not installed into target repositories."""
 import argparse
 import json
 import re
