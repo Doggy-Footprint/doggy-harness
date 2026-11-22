@@ -1297,7 +1297,7 @@ class TestMigration044(InstallerTestCase):
     def update(self, repo, *flags, dry=False):
         if dry:
             return run_installer("update", str(repo), "--no-ci", "--dry-run", forbid_input=True)
-        return run_installer("update", str(repo), "--no-ci", "--no-commit", *flags, input="y\n" * 20, exact=True)
+        return run_installer("update", str(repo), "--no-ci", "--no-commit", *flags, input="y\n" * 40, exact=True)
 
     def announced(self, result):
         return re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE)
@@ -1315,19 +1315,19 @@ class TestMigration044(InstallerTestCase):
         spec_bytes, keep_bytes = spec.read_bytes(), keep.read_bytes()
         result = self.update(repo)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(self.announced(result), ["0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1", "0.50.0", "0.51.0", "0.52.0", "0.53.0", "0.54.0", "0.55.0", "0.55.1"], result.stdout)
+        self.assertEqual(self.announced(result), ["0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1", "0.50.0", "0.51.0", "0.52.0", "0.53.0", "0.54.0", "0.55.0", "0.55.1", "0.56.0"], result.stdout)
         self.assert_plan(result)
         self.assertFalse(active.exists())
         self.assertEqual(spec.read_bytes(), spec_bytes)
         self.assertEqual(keep.read_bytes(), keep_bytes)
-        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.55.1")
+        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.56.0")
 
     def test_dry_run_announces_the_migration_and_deletes_nothing(self):
         repo, spec, keep, active, manifest_path = self.prepare()
         before = self.snapshot(repo)
         result = self.update(repo, dry=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(self.announced(result), ["0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1", "0.50.0", "0.51.0", "0.52.0", "0.53.0", "0.54.0", "0.55.0", "0.55.1"], result.stdout)
+        self.assertEqual(self.announced(result), ["0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1", "0.50.0", "0.51.0", "0.52.0", "0.53.0", "0.54.0", "0.55.0", "0.55.1", "0.56.0"], result.stdout)
         self.assert_plan(result)
         self.assertTrue(active.is_file())
         self.assertEqual(self.snapshot(repo), before)
@@ -1373,10 +1373,10 @@ class TestMigration044(InstallerTestCase):
         spec_bytes = spec.read_bytes()
         result = self.update(repo)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(self.announced(result), ["0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1", "0.50.0", "0.51.0", "0.52.0", "0.53.0", "0.54.0", "0.55.0", "0.55.1"], result.stdout)
+        self.assertEqual(self.announced(result), ["0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1", "0.50.0", "0.51.0", "0.52.0", "0.53.0", "0.54.0", "0.55.0", "0.55.1", "0.56.0"], result.stdout)
         self.assertFalse(active.exists())
         self.assertEqual(spec.read_bytes(), spec_bytes)
-        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.55.1")
+        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.56.0")
 
 
 class TestSkillAbortOrder(SpecCase):

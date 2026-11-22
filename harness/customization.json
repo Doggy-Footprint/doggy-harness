@@ -1,0 +1,56 @@
+{
+  "points": [
+    {
+      "id": "project-instructions",
+      "path": "AGENTS.md",
+      "compare": [
+        ".harness/instructions/harness-block.md",
+        ".harness/instructions/index-and-staleness.md",
+        ".harness/instructions/try-n-fail.md",
+        ".harness/instructions/todos.md",
+        ".harness/instructions/synced-comments.md"
+      ]
+    },
+    {
+      "id": "git-hook",
+      "path": ".harness/local/git/{name}",
+      "names": [
+        "applypatch-msg",
+        "pre-applypatch",
+        "post-applypatch",
+        "pre-commit",
+        "pre-merge-commit",
+        "prepare-commit-msg",
+        "commit-msg",
+        "post-commit",
+        "pre-rebase",
+        "post-checkout",
+        "post-merge",
+        "pre-push",
+        "pre-auto-gc",
+        "post-rewrite"
+      ],
+      "compare": [".harness/git/{name}"]
+    },
+    {
+      "id": "phase-rules",
+      "path": ".harness/local/doggy-workflow/{name}.md",
+      "names": ["brief", "draft", "approve", "implement_test", "verify", "amend", "step", "close", "resume"],
+      "compare": [".harness/skills/doggy-workflow/phases.json"],
+      "compare_phase_fragments": true
+    },
+    {
+      "id": "agent-instructions",
+      "path": ".harness/local/agents/{name}.md",
+      "names": ["code-explorer", "implementer", "mutant-triager", "test-implementer", "test-verifier"],
+      "compare": [".claude/agents/{name}.md"]
+    },
+    {
+      "id": "hook-script",
+      "path": ".harness/local/hooks/**",
+      "compare": [".harness/hooks/hooks.spec.json"]
+    }
+  ],
+  "config_keys": ["docs_root", "exclude_dirs", "auto_install", "agent_model", "step_split_obligations"],
+  "retired": []
+}

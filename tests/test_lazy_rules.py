@@ -39,6 +39,7 @@ KEPT_HEADINGS = [
     "# Documentation Guide",
     "## Principles",
     "## Commit Stamp",
+    "## Customizations",
     "## Rule Files",
     "# Task Guide",
     "## User Decision",
@@ -46,7 +47,7 @@ KEPT_HEADINGS = [
     "## Editing Skills and Prompts",
     "## Commit & PR Messages",
 ]
-NO_BASE_COUNTERPART = ("## Rule Files", "## Editing Skills and Prompts")
+NO_BASE_COUNTERPART = ("## Customizations", "## Rule Files", "## Editing Skills and Prompts")
 PRINCIPLE_NOTE = "Principles 2 and 3 will be replaced by a new approach; until then, following them is not required."
 MOVED = {
     "## Index & Staleness Management": "index-and-staleness.md",
@@ -140,7 +141,8 @@ class TestBlockSplit(unittest.TestCase):
 
     def test_v1_s7_sits_between_commit_stamp_and_task_guide(self):
         headings = [h for h, _ in split_sections(read_block(shared_install()))]
-        self.assertEqual(headings.index("## Rule Files"), headings.index("## Commit Stamp") + 1)
+        self.assertEqual(headings.index("## Customizations"), headings.index("## Commit Stamp") + 1)
+        self.assertEqual(headings.index("## Rule Files"), headings.index("## Customizations") + 1)
         self.assertEqual(headings.index("# Task Guide"), headings.index("## Rule Files") + 1)
 
     def test_v1_moved_sections_keep_their_base_heading_as_the_first_line_of_their_files(self):
@@ -169,9 +171,9 @@ class TestBlockSplit(unittest.TestCase):
         self.assertTrue((repo / ".harness" / "instructions" / "harness-block.md").is_file())
         self.assertFalse((repo / ".harness" / "instructions" / "progress.md").exists())
 
-    def test_v12_block_size_is_at_most_4500_bytes(self):
+    def test_v12_block_size_is_at_most_5100_bytes(self):
         size = len(read_block(shared_install()).encode())
-        self.assertLessEqual(size, 4500)
+        self.assertLessEqual(size, 5100)
         self.assertGreater(size, len(S7.encode()))
 
 
@@ -297,12 +299,12 @@ class TestMigration0410(InstallerTestCase):
         repo, manifest_path = self.install_0400()
         agents_before = (repo / "AGENTS.md").read_bytes()
 
-        result = run_installer("update", str(repo), "--no-ci", "--no-commit", input="y\n" * 20, exact=True)
+        result = run_installer("update", str(repo), "--no-ci", "--no-commit", input="y\n" * 40, exact=True)
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         announced = re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE)
-        self.assertEqual(announced[-1], "0.55.1")
-        self.assertEqual(announced, ["0.41.0", "0.42.0", "0.43.0", "0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1", "0.50.0", "0.51.0", "0.52.0", "0.53.0", "0.54.0", "0.55.0", "0.55.1"])
+        self.assertEqual(announced[-1], "0.56.0")
+        self.assertEqual(announced, ["0.41.0", "0.42.0", "0.43.0", "0.44.0", "0.45.0", "0.47.0", "0.48.0", "0.49.0", "0.49.1", "0.50.0", "0.51.0", "0.52.0", "0.53.0", "0.54.0", "0.55.0", "0.55.1", "0.56.0"])
         self.assertIn(f"migration 0.41.0: {S6_LABEL}", result.stdout)
         start = result.stdout.index("migration 0.41.0:")
         positions = []
@@ -311,7 +313,7 @@ class TestMigration0410(InstallerTestCase):
             positions.append(result.stdout.index(line, start))
         self.assertEqual(positions, sorted(positions))
         self.assertEqual((repo / "AGENTS.md").read_bytes(), agents_before)
-        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.55.1")
+        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.56.0")
         for name in MOVED.values():
             self.assertTrue((repo / INSTRUCTIONS / name).is_file(), name)
         block_headings = [h for h, _ in split_sections(read_block(repo))]

@@ -20,13 +20,15 @@ import verification_tools  # noqa: E402
 SOURCE_HARNESS = Path(__file__).resolve().parents[1] / "harness"
 sys.path.insert(0, str(SOURCE_HARNESS / "lib"))
 import checkout_setup  # noqa: E402
+import config  # noqa: E402
+import customization  # noqa: E402
 import synced  # noqa: E402
 VERSION = (SOURCE_HARNESS / "VERSION").read_text(encoding="utf-8").strip()
 TARGETS_FILE = Path(
     os.environ.get("HARNESS_TARGETS_FILE") or Path(__file__).resolve().parents[1] / ".harness-targets.json"
 )
 
-REPORT_SECTIONS = ["write", "merge", "skip", "conflict", "manual review", "info"]
+REPORT_SECTIONS = ["write", "merge", "skip", "conflict", "manual review", "customization", "info"]
 
 GITIGNORE_LINES = [
     "agent-docs/specs/.active",
@@ -1220,6 +1222,25 @@ def migrate_skill_rewrite(target: Path, dry_run: bool) -> list[str]:
     ]
 
 
+def migrate_customization(target: Path, dry_run: bool) -> list[str]:
+    return [
+        "customizations live in AGENTS.md outside the managed block and under .harness/local/git/<hook name>, "
+        ".harness/local/doggy-workflow/<phase>.md, .harness/local/agents/<agent name>.md, and .harness/local/hooks/**; "
+        "they are followed over harness text they disagree with",
+        "the session notice lists every customization until the user confirms it once, starting with AGENTS.md "
+        "(python3 .harness/bin/customization.py status | confirm PATH...); an update that changes harness text next "
+        "to a confirmed customization lists it again under `customization` in the update report",
+        "update stops before writing when a harness file was edited in place; move the change to a customization, "
+        "delete the file, and run update again to restore it",
+        "update stops when .claude/skills/<name> is a repository skill that shadows a harness skill; rename the repository's skill",
+        "an invalid .harness/config.json (not a JSON object) stops install and update; hooks fall back to the defaults meanwhile",
+        "an existing .harness/git/<name> stops update until it is moved to .harness/local/git/<name> with git mv "
+        "(for a git hook the harness now ships); there it runs after the harness checks and before the clone-private hook",
+        "repository hook groups in .claude/settings.json and .codex/hooks.json that reference .harness/local/ are kept",
+        "no data is migrated",
+    ]
+
+
 def migrate_doggy_workflow(target: Path, dry_run: bool) -> list[str]:
     conflicts = []
     empty_dirs = []
@@ -1411,6 +1432,12 @@ MIGRATIONS = (
         parse_version("0.55.1"),
         "doggy-workflow skill text rewritten for consistency with the same rules",
         migrate_skill_rewrite,
+    ),
+    (
+        parse_version("0.56.0"),
+        "repository customizations under .harness/local/ and in AGENTS.md; refuse edited harness files, "
+        "shadowing skills, invalid config, and existing .harness/git hooks",
+        migrate_customization,
     ),
 )
 
@@ -1676,14 +1703,64 @@ def render_owned_files(no_ci: bool, agent_model: str = DEFAULT_AGENT_MODEL) -> d
     return owned
 
 
+SOURCE_GIT_HOOK_NAMES = customization.git_hook_names(
+    customization.parse_declaration((SOURCE_HARNESS / "customization.json").read_bytes())
+)
+CUSTOM_GIT_HOOK_CONFLICT = (
+    "{path} already exists; a repository's own git hook now lives at .harness/local/git/{name}: "
+    "move it there (git mv) and run update again"
+)
+EDITED_OWNED_CONFLICT = (
+    "{path}: edited in place; harness files are not edited. Move the change to a customization (see README), "
+    "delete {path}, and run update again to restore it"
+)
+
+
 def check_owned_conflicts(target: Path, owned: dict, old_manifest_files: dict) -> list:
     conflicts = []
     for relpath in owned:
         if relpath in old_manifest_files:
             continue
         if (target / relpath).exists():
-            conflicts.append(f"{relpath} already exists")
+            directory, _, name = relpath.rpartition("/")
+            if directory == ".harness/git" and name in SOURCE_GIT_HOOK_NAMES:
+                conflicts.append(CUSTOM_GIT_HOOK_CONFLICT.format(path=relpath, name=name))
+            else:
+                conflicts.append(f"{relpath} already exists")
     return conflicts
+
+
+def check_edited_owned(target: Path, owned: dict, old_manifest_files: dict) -> list[str]:
+    conflicts = []
+    for relpath, old_sha in sorted(old_manifest_files.items()):
+        path = target / relpath
+        if not path.is_file():
+            continue
+        disk_sha = sha256_of(path)
+        new_content = owned.get(relpath)
+        new_sha = hashlib.sha256(new_content).hexdigest() if new_content is not None else None
+        if disk_sha != old_sha and disk_sha != new_sha:
+            conflicts.append(EDITED_OWNED_CONFLICT.format(path=relpath))
+    return conflicts
+
+
+def check_shadowing_skills(target: Path) -> list[str]:
+    conflicts = []
+    for skill_src in iter_skill_dirs():
+        link = target / ".claude" / "skills" / skill_src.name
+        if link.is_symlink() and os.readlink(link) == f"../../.agents/skills/{skill_src.name}":
+            continue
+        if link.exists() or link.is_symlink():
+            conflicts.append(
+                f".claude/skills/{skill_src.name} already exists and is not the harness link; "
+                "rename the repository's own skill and run update again"
+            )
+    return conflicts
+
+
+def check_config_file(target: Path) -> list[str]:
+    reason = customization.config_problem(target)
+    return [] if reason is None else [f"{TARGET_CONFIG}: not a JSON object ({reason})"]
 
 
 def check_write_path_obstructions(target: Path, owned: dict) -> list[str]:
@@ -1733,8 +1810,7 @@ def apply_owned_files(target: Path, owned: dict, old_manifest_files: dict, dry_r
         elif disk_sha == new_sha:
             new_manifest[relpath] = new_sha
         else:
-            report["skip"].append(f"{relpath} (user-modified)")
-            new_manifest[relpath] = old_sha
+            raise RuntimeError(f"{relpath} was edited; the update must have stopped before writing")
 
     for relpath, old_sha in old_manifest_files.items():
         if relpath in owned:
@@ -1745,16 +1821,14 @@ def apply_owned_files(target: Path, owned: dict, old_manifest_files: dict, dry_r
                 prune_empty_parents(target, disk_path)
             continue
         disk_sha = sha256_of(disk_path)
-        if disk_sha == old_sha:
-            if not dry_run:
-                disk_path.unlink()
-                prune_empty_parents(target, disk_path)
-            report["write"].append(f"delete {relpath}")
-        else:
-            report["skip"].append(f"{relpath} (user-modified, not deleted)")
-            new_manifest[relpath] = old_sha
+        if disk_sha != old_sha:
+            raise RuntimeError(f"{relpath} was edited; the update must have stopped before writing")
+        if not dry_run:
+            disk_path.unlink()
+            prune_empty_parents(target, disk_path)
+        report["write"].append(f"delete {relpath}")
 
-    for name in ("pre-commit", "commit-msg", "post-merge"):
+    for name in SOURCE_GIT_HOOK_NAMES:
         path = target / ".harness" / "git" / name
         if not dry_run and path.exists():
             os.chmod(path, 0o755)
@@ -1770,10 +1844,14 @@ def apply_owned_files(target: Path, owned: dict, old_manifest_files: dict, dry_r
 
 
 def _group_is_harness(group: dict) -> bool:
-    return any("/.harness/" in h.get("command", "") for h in group.get("hooks", []))
+    # A group that also runs something under .harness/local/ is the repository's own.
+    commands = [h.get("command", "") for h in group.get("hooks", [])]
+    return any("/.harness/" in c for c in commands) and not any("/.harness/local/" in c for c in commands)
 
 
 def prune_empty_parents(target: Path, path: Path) -> None:
+    if path.relative_to(target).parts[:2] == (".harness", "local"):
+        return
     directory = path.parent
     while len(directory.relative_to(target).parts) > 2:
         try:
@@ -1819,7 +1897,7 @@ def merge_hook_files(target: Path, dry_run: bool, report: dict):
 
 
 HEADING_RE = re.compile(r"(?m)^#{1,2}\s+(.+?)\s*$")
-MARKER_RE = re.compile(r"<!-- harness:begin [^\n]*-->\n(.*?)<!-- harness:end -->\n?", re.DOTALL)
+MARKER_RE = customization.MANAGED_BLOCK_RE
 
 
 MANAGED_BLOCK_IMPORT = "@.harness/instructions/harness-block.md"
@@ -2210,6 +2288,7 @@ def cmd_install(target: Path, dry_run: bool, no_ci: bool, ask_tools: bool = Fals
             report["conflict"].append(f".claude/skills/{skill_src.name} already exists")
 
     check_settings_json_validity(target, report)
+    report["conflict"].extend(check_config_file(target))
 
     if report["conflict"]:
         print_report(report)
@@ -2360,6 +2439,13 @@ def cmd_update(
     return _update_after_manifest(target, dry_run, no_ci, ask_tools, model, commit, report, manifest)
 
 
+def update_customization_lines(target: Path, owned: dict, old_files: dict) -> list[str]:
+    # Judged against the harness files the update leaves on disk, which dry-run has not written yet.
+    after = {relpath: None for relpath in old_files}
+    after.update(owned)
+    return customization.pending_lines(customization.analyze(target, after))
+
+
 def _update_after_manifest(
     target: Path,
     dry_run: bool,
@@ -2386,6 +2472,9 @@ def _update_after_manifest(
         report["conflict"].append(git_failure)
 
     check_settings_json_validity(target, report)
+    report["conflict"].extend(check_edited_owned(target, owned, old_files))
+    report["conflict"].extend(check_shadowing_skills(target))
+    report["conflict"].extend(check_config_file(target))
 
     if report["conflict"]:
         print_report(report)
@@ -2437,6 +2526,7 @@ def _update_after_manifest(
     if model:
         save_agent_model(target, model, dry_run, report)
     report["info"].append(f"workflow subagent model: {agent_model} (change with --model {'|'.join(AGENT_MODELS)})")
+    report["customization"].extend(update_customization_lines(target, owned, old_files))
 
     if not dry_run:
         manifest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -2587,6 +2677,13 @@ def cmd_doctor(target: Path) -> int:
     if not integrated:
         report["conflict"].append("git hooks not integrated with .harness/git")
 
+    result = customization.analyze(target)
+    report["manual review"].extend(
+        customization.item_line(item) for item in result["items"] if item["state"] != customization.CONFIRMED
+    )
+    for problem in result["problems"]:
+        report["conflict" if problem["kind"] == "config-invalid" else "manual review"].append(problem["text"])
+
     collect_info_items(target, report)
 
     print_report(report)
@@ -2594,7 +2691,10 @@ def cmd_doctor(target: Path) -> int:
 
 
 IMPORT_SCAN_DIRS = [".harness", ".agents/skills", ".claude/agents", ".claude/skills", ".codex/agents"]
-IMPORT_SCAN_SKIP = ("__pycache__", "/sessions/", "manifest.json")
+IMPORT_SCAN_SKIP = (
+    "__pycache__", "/sessions/", "manifest.json",
+    "/.harness/local/", "/.harness/customization-review.json", "/.harness/config.json",
+)
 
 
 def _decode(data: bytes):
@@ -2613,6 +2713,7 @@ def collect_drift(target: Path, manifest: dict, owned: dict) -> dict:
         "missing": [],
         "added": [],
         "unchanged": 0,
+        "customization": [],
     }
     files = manifest.get("files", {})
     for relpath, sha in sorted(files.items()):
@@ -2651,6 +2752,11 @@ def collect_drift(target: Path, manifest: dict, owned: dict) -> dict:
             if relpath in files or any(skip in "/" + relpath for skip in IMPORT_SCAN_SKIP):
                 continue
             drift["added"].append(relpath)
+    for item in customization.analyze(target)["items"]:
+        entry = {"path": item["path"], "state": item["state"]}
+        if item["state"] == customization.RETIRED:
+            entry["note"] = item["note"]
+        drift["customization"].append(entry)
     return drift
 
 
@@ -2690,6 +2796,11 @@ def cmd_import(target: Path, as_json: bool) -> int:
                 print(f"    {line}")
         else:
             print("    no textual diff available")
+    print("== customization ==")
+    if not drift["customization"]:
+        print("  none")
+    for entry in drift["customization"]:
+        print(f"  {customization.item_line(entry)}")
     return 0
 
 
