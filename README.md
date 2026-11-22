@@ -24,6 +24,7 @@ python3 installer/harness.py install <target>
 
 - 이미 설치된 저장소(`.harness/manifest.json` 있음)에는 `install` 대신 `update`를 씁니다.
 - fuzzing·mutation 도구가 없으면 감지한 언어별로 설치 여부를 `[y/N/never]`로 묻습니다. `never`는 `~/.harness/preferences.json`에 저장됩니다.
+- 질문의 답은 stdin으로 읽습니다. stdin이 socket이면(에이전트 셸이 열어 두는 경우) 묻지 않고 "아니오"로 처리하므로, 답은 `printf 'y\n' | python3 installer/harness.py update <target>`처럼 pipe로 넣습니다.
 - Claude Code 세션이 시작되면 프로젝트 manifest가 선언한 검증 도구가 없을 때 lockfile이 있는 경우에만 백그라운드로 의존성을 설치하고, 새 clone의 `core.hooksPath`를 `.harness/git`으로 복원합니다. 상태는 `python3 .harness/bin/checkout_setup.py status`로 봅니다. 자동 설치는 `.harness/config.json`의 `"auto_install": false`로 끕니다.
 - 파일이나 스킬 이름이 충돌하면 설치를 중단하고 경로를 알려 줍니다.
 

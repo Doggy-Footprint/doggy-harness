@@ -751,6 +751,19 @@ def _stdin_readable() -> bool:
         return False
 
 
+def ask(prompt: str) -> str:
+    # A socket on stdin, as an agent's shell can leave open, sends neither an answer nor EOF:
+    # reading it would wait forever, so the question is not asked and counts as no.
+    try:
+        on_socket = stat.S_ISSOCK(os.fstat(sys.stdin.fileno()).st_mode)
+    except (AttributeError, ValueError, OSError):
+        on_socket = False
+    if on_socket:
+        print(f"{prompt}(not asked: stdin is a socket; counted as no. Pipe the answer in to give one.)")
+        return ""
+    return input(prompt)
+
+
 def move_handoff_to_todos(target: Path, input_fn: Callable[[str], str]) -> list[str]:
     handoff_dir = target / "agent-docs" / "handoff"
     todos_dir = target / "agent-docs" / "todos"
@@ -1604,7 +1617,7 @@ def add_gitignore_exceptions(target: Path, ignored: dict[str, str], ignored_dire
         report["conflict"].append("ignored harness paths: .gitignore exceptions require consent (dry-run)")
         return True
     try:
-        answer = input("Add .gitignore exceptions for these harness paths and continue? [y/N] ")
+        answer = ask("Add .gitignore exceptions for these harness paths and continue? [y/N] ")
     except EOFError:
         answer = ""
     if answer.strip().lower() != "y":
@@ -2150,7 +2163,7 @@ def _ruleset_matches(current: dict, wanted: dict) -> bool:
 
 
 def ensure_required_checks_ruleset(
-    target: Path, dry_run: bool, report: dict, input_fn: Callable[[str], str] = input
+    target: Path, dry_run: bool, report: dict, input_fn: Callable[[str], str] = ask
 ):
     wanted = json.loads((SOURCE_HARNESS / "ci" / RULESET_FILE).read_text(encoding="utf-8"))
     if dry_run:
@@ -2303,7 +2316,7 @@ def cmd_install(target: Path, dry_run: bool, no_ci: bool, ask_tools: bool = Fals
     if not no_ci:
         ensure_comment_approval_label(target, dry_run, report)
         ensure_required_checks_ruleset(target, dry_run, report)
-    verification_tools.offer(target, dry_run, ask_tools, report)
+    verification_tools.offer(target, dry_run, ask_tools, report, input_fn=ask)
     if model:
         save_agent_model(target, model, dry_run, report)
     report["info"].append(f"workflow subagent model: {agent_model} (change with --model {'|'.join(AGENT_MODELS)})")
@@ -2499,7 +2512,7 @@ def _update_after_manifest(
             raise IgnoreConflict()
 
     try:
-        run_migrations(target, manifest.get("version"), dry_run, input, before_migration_writes)
+        run_migrations(target, manifest.get("version"), dry_run, ask, before_migration_writes)
     except InvalidManifestVersion:
         report["conflict"].append("InvalidManifestVersion: .harness/manifest.json version is absent or malformed")
         print_report(report)
@@ -2521,7 +2534,7 @@ def _update_after_manifest(
     if not no_ci:
         ensure_comment_approval_label(target, dry_run, report)
         ensure_required_checks_ruleset(target, dry_run, report)
-    verification_tools.offer(target, dry_run, ask_tools, report)
+    verification_tools.offer(target, dry_run, ask_tools, report, input_fn=ask)
     if model:
         save_agent_model(target, model, dry_run, report)
     report["info"].append(f"workflow subagent model: {agent_model} (change with --model {'|'.join(AGENT_MODELS)})")
