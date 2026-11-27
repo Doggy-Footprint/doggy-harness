@@ -1267,6 +1267,17 @@ def migrate_subagent_comments(target: Path, dry_run: bool) -> list[str]:
     ]
 
 
+def migrate_hand_mutation_focused_run(target: Path, dry_run: bool) -> list[str]:
+    return [
+        "hand mutations in the Triage and mutate step run a focused run first: the Test command narrowed to the "
+        "tests that hold the intended assertion; the full Test command runs only when the focused run passes, and "
+        "a Test command that cannot be narrowed runs whole",
+        "when a Test command run takes longer than two minutes, main records its wall-clock time and slowest "
+        "single tests in the execution ledger and proposes splitting them in the closing report",
+        "no data is migrated",
+    ]
+
+
 def migrate_doggy_workflow(target: Path, dry_run: bool) -> list[str]:
     conflicts = []
     empty_dirs = []
@@ -1471,6 +1482,11 @@ MIGRATIONS = (
         "TypeScript/JavaScript comments are detected with tree-sitter through uv; "
         "the comment check needs uv on PATH and in CI",
         migrate_subagent_comments,
+    ),
+    (
+        parse_version("0.58.0"),
+        "hand mutations run a focused run of the tests holding the intended assertion first; a Test command slower than two minutes is diagnosed and reported",
+        migrate_hand_mutation_focused_run,
     ),
 )
 

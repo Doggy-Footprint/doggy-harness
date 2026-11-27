@@ -1435,7 +1435,7 @@ class TestInstallerChanges(InstallerTestCase):
         repo = self.install()
 
         self.assert_artefacts(repo)
-        self.assertEqual(json.loads((repo / ".harness" / "manifest.json").read_text())["version"], "0.57.0")
+        self.assertEqual(json.loads((repo / ".harness" / "manifest.json").read_text())["version"], "0.58.0")
         self.assertEqual(run_installer("doctor", str(repo)).returncode, 0)
 
     def test_update_from_0530_announces_the_migration_and_keeps_doctor_green(self):
@@ -1448,12 +1448,12 @@ class TestInstallerChanges(InstallerTestCase):
         result = run_installer("update", str(repo), "--no-ci", "--no-commit", input="y\n" * 5)
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE), ["0.54.0", "0.55.0", "0.55.1", "0.56.0", "0.57.0"])
+        self.assertEqual(re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE), ["0.54.0", "0.55.0", "0.55.1", "0.56.0", "0.57.0", "0.58.0"])
         self.assertIn(f"migration 0.54.0: {self.LABEL}", result.stdout)
         start = result.stdout.index("migration 0.54.0:")
         positions = [result.stdout.index(line, start) for line in self.LINES]
         self.assertEqual(positions, sorted(positions))
-        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.57.0")
+        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.58.0")
         self.assert_artefacts(repo)
         self.assertEqual(run_installer("doctor", str(repo)).returncode, 0)
 
