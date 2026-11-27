@@ -16,7 +16,7 @@
     ".harness/bin/checkout_setup.py": "69f3233f6717033238ceaeb52fe15992c64e31aadc8d89725a7b09b4791fd849",
     ".harness/bin/customization.py": "94e115f7906b30179d1a97ad9c8efb5f839d8ecaf5d89a9bfd8a1a3d3e5ee670",
     ".harness/ci/harness-ruleset.json": "072f37c5c845ee803b1c3afbe2c88b41199cd63a56a78391a878378137c63026",
-    ".harness/ci/harness-comment-warning.yml": "866b634139f23182ab721155aa8fd828ba1f866478206d25cd7c0f338b67b9c0",
+    ".harness/ci/harness-comment-warning.yml": "8bcac77bb13cd7038a95ec880c6059c13f7ae4ac32473942efec7daaf5b2b6f2",
     ".harness/ci/harness-facts-approval.yml": "7fcb62124f4d9c8751887cb8c4c54904e6907b8ff1f6769a850f555c1bc7a756",
     ".harness/agents/code-explorer.md": "7954c2ba04bbc5b3a63313c02a99e5ec5b35160785e266cfb715a9d9fc909d24",
     ".harness/agents/test-implementer.md": "35578c77e826c72dc00d6c437c7ea3ea848fca56cd74e6d0a5cee5de05530204",
@@ -147,7 +147,7 @@
     ".agents/skills/doggy-workflow/phases.json": "b6d19aced3e386371e8f999b0cde63bb94f960e627ace5bf8c9ff01c3df5ad88",
     ".agents/skills/doggy-workflow/spec-template.md": "bf743d6cf31c604b5dcf117267e465caa2dc84738e23c5db78befdac988c9fe1",
     ".agents/skills/project-map/SKILL.md": "38d3151d801e4369c7f00f123841150324381c4733b28ec1add1770620fba2a6",
-    ".github/workflows/harness-comment-warning.yml": "866b634139f23182ab721155aa8fd828ba1f866478206d25cd7c0f338b67b9c0",
+    ".github/workflows/harness-comment-warning.yml": "8bcac77bb13cd7038a95ec880c6059c13f7ae4ac32473942efec7daaf5b2b6f2",
     ".github/workflows/harness-facts-approval.yml": "7fcb62124f4d9c8751887cb8c4c54904e6907b8ff1f6769a850f555c1bc7a756"
   }
 }

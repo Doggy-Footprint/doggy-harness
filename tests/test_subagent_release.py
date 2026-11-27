@@ -106,7 +106,7 @@ class WorkflowOrderTests(unittest.TestCase):
 
     def test_o13_y1_y2_y3_setup_uv_step_sits_between_checkout_and_gate(self):
         steps = self.steps()
-        setup = self.index_of(steps, lambda s: re.search(r"uses:\s*astral-sh/setup-uv@v10\s*$", s, re.M), "setup-uv")
+        setup = self.index_of(steps, lambda s: re.search(r"uses:\s*astral-sh/setup-uv@v10\.4\.0\s*$", s, re.M), "setup-uv")
         checkout = self.index_of(steps, lambda s: "actions/checkout@" in s, "checkout")
         gate = self.index_of(steps, lambda s: "warn_new_comments.py" in s and "--approved" in s, "gate")
         self.assertLess(checkout, setup)
