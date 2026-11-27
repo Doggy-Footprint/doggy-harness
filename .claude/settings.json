@@ -42,6 +42,14 @@
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/customization_context.py\""
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/subagent_comments.py\""
+          }
+        ]
       }
     ],
     "SubagentStop": [
@@ -50,6 +58,14 @@
           {
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/spec_gate.py\""
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/subagent_comments.py\""
           }
         ]
       }
@@ -79,6 +95,15 @@
           {
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/rule_injection.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "SubagentHandback",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/subagent_comments.py\""
           }
         ]
       }
