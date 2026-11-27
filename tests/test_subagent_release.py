@@ -61,11 +61,11 @@ class InstalledHookTests(InstallerTestCase):
                     self.assertEqual([l for l in text.splitlines() if l.strip()][-1], bullet)
 
     def test_o12_g4_version_file_and_migration_entry(self):
-        self.assertEqual((REPO_ROOT / "harness" / "VERSION").read_text().strip(), "0.57.0")
+        self.assertEqual((REPO_ROOT / "harness" / "VERSION").read_text().strip(), "0.58.0")
         module = load_installer_module()
         entries = [m for m in module.MIGRATIONS if m[0] == module.parse_version("0.57.0")]
         self.assertEqual(len(entries), 1)
-        self.assertEqual(module.MIGRATIONS[-1][0], module.parse_version("0.57.0"))
+        self.assertEqual(module.MIGRATIONS[-2][0], module.parse_version("0.57.0"))
         label = entries[0][1]
         for word in ("implementer", "test-implementer", "once", "comment", "tree-sitter", "uv", "PATH", "CI"):
             with self.subTest(word=word):
@@ -80,8 +80,8 @@ class InstalledHookTests(InstallerTestCase):
         skip_legacy_update(("update", str(repo)))
         result = run_installer("update", str(repo), "--no-ci", "--no-commit", input="y\n" * 10)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE), ["0.57.0"])
-        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.57.0")
+        self.assertEqual(re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE), ["0.57.0", "0.58.0"])
+        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.58.0")
         hooks = json.loads((repo / ".claude" / "settings.json").read_text())["hooks"]
         self.assertEqual(sum(len(self.hook_commands(groups)) for groups in hooks.values()), 3)
         self.assertTrue((repo / ".harness" / "hooks" / HOOK).is_file())
