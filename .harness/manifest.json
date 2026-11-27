@@ -31,7 +31,7 @@
     ".harness/hooks/hooks.spec.json": "0cc5942869ce48e4d535d0b38309ad0f6edce187635c67e03b3f3b24eb77002b",
     ".harness/hooks/customization_notice.py": "8357251c3fa91c0085181202ce1b352568b90c238d93e7956b06eeeb9b0ed87e",
     ".harness/hooks/rule_injection.py": "d4bb1274ae650ad78cb72db5cf9705843822acb77c9fd5fdaf7d0b01a67777e2",
-    ".harness/hooks/subagent_comments.py": "6cd4531d73f44177ed4ab39bc542c46ed7df758c82e374a11fb39436c46a6578",
+    ".harness/hooks/subagent_comments.py": "070848b3e58eecc489b86ede21918999a7f9194c304389ff032876d799832b6d",
     ".harness/hooks/customization_context.py": "23b1aec0696bcb5f741a9a0ea2f3e9a367605a4d0c3d81ab6af0f8db8b965f54",
     ".harness/hooks/pr_message_nudge.py": "d6b27292389f4b808d31afb01e4ae5f39dee026def7653804d97cb13086f67e5",
     ".harness/lib/isolation.py": "6ae9f9535c06d8e776d5ab83c25f92798cba7917df4e2727bb4fbc59f1d92cf7",

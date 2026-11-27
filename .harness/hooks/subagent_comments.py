@@ -95,7 +95,6 @@ def reason_for(fresh: list[tuple[str, int, str]]) -> str:
 def first_stop(name: str) -> bool | None:
     try:
         RECORDS_DIR.mkdir(parents=True, exist_ok=True)
-        # Exclusive creation keeps a hand-back and a stop that race from both stopping the agent.
         os.close(os.open(RECORDS_DIR / f"{name}.stopped", os.O_CREAT | os.O_EXCL | os.O_WRONLY))
         return True
     except FileExistsError:
