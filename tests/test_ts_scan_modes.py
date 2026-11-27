@@ -10,9 +10,10 @@ from tests.test_comment_gate import AGENT_SENTENCE, WARN, RepoTestCase, git
 
 MODES = ("staged", "gate_yes", "gate_no", "legacy")
 TITLE = "Comment check could not run"
-PINS = ("tree-sitter==0.27.0", "tree-sitter-typescript==0.23.2")
+PINS = ("tree-sitter==0.27.0", "tree-sitter-typescript==0.23.2", "tree-sitter-kotlin==1.1.0")
 TS_ONLY = {"a.ts": "const a = 1;\n// note\n"}
-MIXED = {"a.py": "x = 1\n# c\n", "b.kt": "val a = 1\n// k\n"}
+MIXED = {"a.py": "x = 1\n# c\n", "b.java": "int a = 1;\n// k\n"}
+KT_ONLY = {"a.kt": "val a = 1\n// k\n"}
 
 
 class ScanModeCase(RepoTestCase):
@@ -54,11 +55,11 @@ class ScanModeCase(RepoTestCase):
         else:
             self.assertIn((path, str(line)), WARNING_ENTRY.findall(r.stdout))
 
-    def assert_could_not_run(self, mode, r, *fragments):
+    def assert_could_not_run(self, mode, r, *fragments, name="a.ts"):
         out = r.stdout + r.stderr
         if mode == "staged":
             self.assertEqual(r.returncode, 0, out)
-            self.assertIn("comment check could not run for a.ts: ", r.stderr)
+            self.assertIn(f"comment check could not run for {name}: ", r.stderr)
             self.assertIn(AGENT_SENTENCE, r.stderr)
         elif mode.startswith("gate"):
             self.assertEqual(r.returncode, 1, out)
@@ -66,7 +67,7 @@ class ScanModeCase(RepoTestCase):
         else:
             self.assertEqual(r.returncode, 0, out)
             self.assertTrue([l for l in r.stdout.splitlines() if l.startswith(f"::warning title={TITLE}::")], out)
-        self.assertIn("a.ts", out)
+        self.assertIn(name, out)
         for fragment in fragments:
             self.assertIn(fragment, out)
 
@@ -77,8 +78,9 @@ class ScanModeCase(RepoTestCase):
         for pin in PINS:
             self.assertEqual(argv[argv.index(pin) - 1], "--with")
         python = argv.index("python")
+        self.assertEqual(argv.count("--with"), len(PINS))
         self.assertEqual(argv[python + 1], "-I")
-        self.assertEqual(Path(argv[python + 2]).name, "ts_comments.py")
+        self.assertEqual(Path(argv[python + 2]).name, "tree_sitter_comments.py")
         self.assertEqual(len(argv), python + 3)
 
 
@@ -95,10 +97,10 @@ class DecisionTableTests(ScanModeCase):
                     self.assertNotIn(TITLE, r.stdout + r.stderr)
                     if mode == "staged":
                         self.assertIn("a.py:2: # c", r.stderr)
-                        self.assertIn("b.kt:2: // k", r.stderr)
+                        self.assertIn("b.java:2: // k", r.stderr)
                     else:
                         self.assertIn(("a.py", "2"), WARNING_ENTRY.findall(r.stdout))
-                        self.assertIn(("b.kt", "2"), WARNING_ENTRY.findall(r.stdout))
+                        self.assertIn(("b.java", "2"), WARNING_ENTRY.findall(r.stdout))
 
     def test_o4_t1_deletion_only_ts_changes_never_start_uv(self):
         base = {"a.ts": "const a = 1;\nconst b = 2;\nconst c = 3;\n"}
@@ -189,6 +191,98 @@ class DecisionTableTests(ScanModeCase):
                     r = self.run_scan(repo, args, uv_mode)
                     self.assert_could_not_run(mode, r, "unexpected scanner output")
                     self.assertEqual(len(calls(self.log)), 1)
+
+
+class KotlinScanTests(ScanModeCase):
+    def test_o3_m1_kotlin_and_typescript_mix_is_one_call_with_a_grammar_per_file(self):
+        import json
+        files = {"a.kt": "val a = 1\n// k\n", "b.ts": "const a = 1;\n// note\n"}
+        for mode in MODES:
+            with self.subTest(mode=mode):
+                self.log.unlink(missing_ok=True)
+                repo, args = self.scenario(mode, files)
+                r = self.run_scan(repo, args, "ok")
+                self.assert_findings(mode, r, "a.kt", 2)
+                self.assert_findings(mode, r, "b.ts", 2)
+                recorded = calls(self.log)
+                self.assertEqual(len(recorded), 1)
+                self.assert_command(recorded[0]["argv"], offline=True)
+                stdin = json.loads(recorded[0]["stdin"])
+                self.assertEqual({p: item["grammar"] for p, item in stdin.items()}, {"a.kt": "kotlin", "b.ts": "typescript"})
+
+    def test_o3_m2_typescript_only_scan_still_carries_all_three_pins(self):
+        repo, args = self.scenario("staged", TS_ONLY)
+        self.run_scan(repo, args, "ok")
+        recorded = calls(self.log)
+        self.assertEqual(len(recorded), 1)
+        for pin in PINS:
+            self.assertIn(pin, recorded[0]["argv"])
+        self.assertIn("tree-sitter-kotlin==1.1.0", recorded[0]["argv"])
+
+    def test_o3_m3_python_and_java_only_scan_never_starts_uv(self):
+        for mode in MODES:
+            with self.subTest(mode=mode):
+                self.log.unlink(missing_ok=True)
+                repo, args = self.scenario(mode, MIXED)
+                r = self.run_scan(repo, args, "ok")
+                self.assertEqual(calls(self.log), [])
+                self.assertEqual(r.returncode, 1 if mode == "gate_no" else 0, r.stdout + r.stderr)
+
+    def test_o3_m4_kts_only_scan_is_one_call_with_three_pins_and_kotlin_grammar(self):
+        import json
+        files = {"build.gradle.kts": "plugins {}\n// k\n"}
+        repo, args = self.scenario("staged", files)
+        r = self.run_scan(repo, args, "ok")
+        self.assertRegex(r.stderr, r"(?m)^build\.gradle\.kts:2: // k")
+        recorded = calls(self.log)
+        self.assertEqual(len(recorded), 1)
+        self.assert_command(recorded[0]["argv"], offline=True)
+        stdin = json.loads(recorded[0]["stdin"])
+        self.assertEqual({p: item["grammar"] for p, item in stdin.items()}, {"build.gradle.kts": "kotlin"})
+
+    def test_o3_kt_and_kts_both_map_to_kotlin_in_one_scan(self):
+        import json
+        files = {"a.kt": "// k\n", "b.kts": "// k\n", "c.main.kts": "// k\n"}
+        repo, args = self.scenario("staged", files)
+        self.run_scan(repo, args, "ok")
+        recorded = calls(self.log)
+        self.assertEqual(len(recorded), 1)
+        stdin = json.loads(recorded[0]["stdin"])
+        self.assertEqual({p: item["grammar"] for p, item in stdin.items()}, {n: "kotlin" for n in files})
+
+    def test_o4_t1_staged_uv_absent_kotlin_change_warns_and_continues(self):
+        repo, args = self.scenario("staged", KT_ONLY)
+        r = self.run_scan(repo, args, None)
+        self.assert_could_not_run("staged", r, "uv not found on PATH", name="a.kt")
+
+    def test_o4_t2_gate_yes_uv_absent_kotlin_change_errors_and_fails(self):
+        repo, args = self.scenario("gate_yes", KT_ONLY)
+        r = self.run_scan(repo, args, None)
+        self.assert_could_not_run("gate_yes", r, "uv not found on PATH", name="a.kt")
+
+    def test_o4_t3_legacy_uv_absent_kotlin_change_warns_and_passes(self):
+        repo, args = self.scenario("legacy", KT_ONLY)
+        r = self.run_scan(repo, args, None)
+        self.assert_could_not_run("legacy", r, "uv not found on PATH", name="a.kt")
+
+    def test_o4_t4_offline_failure_then_online_success_reports_kotlin_findings(self):
+        for mode in MODES:
+            with self.subTest(mode=mode):
+                self.log.unlink(missing_ok=True)
+                repo, args = self.scenario(mode, KT_ONLY)
+                r = self.run_scan(repo, args, "offline_fail")
+                self.assert_findings(mode, r, "a.kt", 2)
+                recorded = calls(self.log)
+                self.assertEqual(len(recorded), 2)
+                self.assert_command(recorded[0]["argv"], offline=True)
+                self.assert_command(recorded[1]["argv"], offline=False)
+
+    def test_o4_kotlin_both_runs_failing_fail_closed(self):
+        for mode in MODES:
+            with self.subTest(mode=mode):
+                repo, args = self.scenario(mode, KT_ONLY)
+                r = self.run_scan(repo, args, "both_fail")
+                self.assert_could_not_run(mode, r, "7", "network down", name="a.kt")
 
 
 class GrammarSelectionTests(ScanModeCase):

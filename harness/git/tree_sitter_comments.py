@@ -6,28 +6,44 @@ import re
 import sys
 
 import tree_sitter
+import tree_sitter_kotlin
 import tree_sitter_typescript
 
 GRAMMARS = {
     "typescript": tree_sitter_typescript.language_typescript,
     "tsx": tree_sitter_typescript.language_tsx,
+    "kotlin": tree_sitter_kotlin.language,
 }
-DIRECTIVE = re.compile(
-    r"(?://|/\*)\s*(?:@ts-|eslint-disable|eslint-enable|prettier-ignore|biome-ignore|istanbul ignore|c8 ignore"
-    r"|v8 ignore|#__PURE__|@__PURE__|webpackChunkName)"
+COMMENT_NODE_TYPES = {
+    "typescript": {"comment"},
+    "tsx": {"comment"},
+    "kotlin": {"line_comment", "block_comment"},
+}
+TYPESCRIPT_DIRECTIVES = (
+    re.compile(
+        r"(?://|/\*)\s*(?:@ts-|eslint-disable|eslint-enable|prettier-ignore|biome-ignore|istanbul ignore|c8 ignore"
+        r"|v8 ignore|#__PURE__|@__PURE__|webpackChunkName)"
+    ),
+    re.compile(r"///\s*<reference"),
 )
-REFERENCE_DIRECTIVE = re.compile(r"///\s*<reference")
+KOTLIN_DIRECTIVES = (
+    re.compile(
+        r"(?://|/\*) *(?:ktlint-disable|ktlint-enable|noinspection|@formatter:off|@formatter:on"
+        r"|spotless:off|spotless:on|language=)"
+    ),
+)
+DIRECTIVES = {"typescript": TYPESCRIPT_DIRECTIVES, "tsx": TYPESCRIPT_DIRECTIVES, "kotlin": KOTLIN_DIRECTIVES}
 
 
-def comment_lines(parser: tree_sitter.Parser, source: str) -> list[int]:
+def comment_lines(parser: tree_sitter.Parser, grammar: str, source: str) -> list[int]:
     tree = parser.parse(source.encode("utf-8"))
     lines = set()
     stack = [tree.root_node]
     while stack:
         node = stack.pop()
-        if node.type == "comment":
+        if node.type in COMMENT_NODE_TYPES[grammar]:
             text = source_text(node)
-            if DIRECTIVE.match(text) or REFERENCE_DIRECTIVE.match(text):
+            if any(pattern.match(text) for pattern in DIRECTIVES[grammar]):
                 continue
             if node.start_point[0] == 0 and text.startswith("#!"):
                 continue
@@ -49,7 +65,7 @@ def main() -> int:
         grammar = item["grammar"]
         if grammar not in parsers:
             parsers[grammar] = tree_sitter.Parser(tree_sitter.Language(GRAMMARS[grammar]()))
-        result[path] = comment_lines(parsers[grammar], item["source"])
+        result[path] = comment_lines(parsers[grammar], grammar, item["source"])
     json.dump(result, sys.stdout)
     return 0
 

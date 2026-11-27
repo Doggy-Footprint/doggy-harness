@@ -261,6 +261,36 @@ class StateTransitionTests(SubagentCase):
         self.assert_silent(self.stop("agent-t10r"))
 
 
+class KotlinFinishTests(SubagentCase):
+    def test_o5_s1_kotlin_comment_in_an_implementation_path_denies_the_first_handback(self):
+        self.start("agent-k1")
+        self.put("src/x.kt", "val x = 1\n// returns a+b\n")
+        reason = self.deny_reason(self.handback("agent-k1"))
+        self.assertEqual(reason.splitlines()[0], HEADER)
+        self.assertEqual(self.entries(reason), ["src/x.kt:2: // returns a+b"])
+        self.assert_silent(self.handback("agent-k1"))
+
+    def test_o5_s1_kotlin_trailing_and_block_middle_lines_are_listed(self):
+        self.start("agent-k1b")
+        self.put("src/x.kt", "val x = 1 // t\n/*\n   body\n*/\n")
+        reason = self.deny_reason(self.handback("agent-k1b"))
+        found = [re.match(r"(\S+:\d+):", e).group(1) for e in self.entries(reason)]
+        self.assertEqual(sorted(found), ["src/x.kt:1", "src/x.kt:2", "src/x.kt:3", "src/x.kt:4"])
+
+    def test_o5_s2_uv_absent_with_a_kotlin_change_stops_once_with_the_could_not_run_reason(self):
+        self.start("agent-k2")
+        self.put("src/x.kt", "val x = 1\n// c\n")
+        env = self.no_uv_env()
+        reason = self.deny_reason(self.handback("agent-k2", env=env))
+        self.assertTrue(reason.startswith(COULD_NOT_RUN_HEAD), reason)
+        self.assertTrue(reason.endswith(COULD_NOT_RUN_TAIL), reason)
+        message = reason[len(COULD_NOT_RUN_HEAD):-len(COULD_NOT_RUN_TAIL)]
+        self.assertIn("uv not found on PATH", message)
+        self.assertIn("src/x.kt", message)
+        self.assertNotIn(HEADER, reason)
+        self.assert_silent(self.handback("agent-k2", env=env))
+
+
 class BaselineTests(SubagentCase):
     def test_o7_b1_empty_baseline_reports_new_comment(self):
         self.start("agent-b1")

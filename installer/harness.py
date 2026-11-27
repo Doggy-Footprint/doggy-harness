@@ -1278,6 +1278,17 @@ def migrate_hand_mutation_focused_run(target: Path, dry_run: bool) -> list[str]:
     ]
 
 
+def migrate_kotlin_comments(target: Path, dry_run: bool) -> list[str]:
+    return [
+        "`.kts` files are now checked for added comments, like `.kt` files",
+        "Kotlin comments are detected with tree-sitter through `uv run --with`, so Kotlin now needs `uv` on PATH "
+        "and in CI like TypeScript; without it the commit warning says the check could not run and the pull "
+        "request gate fails",
+        "the first comment check after the update fetches `tree-sitter-kotlin` once into the uv cache",
+        "no data is migrated",
+    ]
+
+
 def migrate_doggy_workflow(target: Path, dry_run: bool) -> list[str]:
     conflicts = []
     empty_dirs = []
@@ -1487,6 +1498,11 @@ MIGRATIONS = (
         parse_version("0.58.0"),
         "hand mutations run a focused run of the tests holding the intended assertion first; a Test command slower than two minutes is diagnosed and reported",
         migrate_hand_mutation_focused_run,
+    ),
+    (
+        parse_version("0.59.0"),
+        "Kotlin (.kt, .kts) comments are detected with tree-sitter through uv",
+        migrate_kotlin_comments,
     ),
 )
 

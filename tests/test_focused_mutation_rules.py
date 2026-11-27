@@ -142,24 +142,24 @@ class TestMigrationTo0580(FocusedMutationCase):
         manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
         result = run_installer("update", str(self.repo), "--no-ci", "--no-commit", input="y\n" * 10, exact=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE), ["0.58.0"])
+        self.assertEqual(re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE), ["0.58.0", "0.59.0"])
         self.assertIn(SUMMARY, result.stdout)
         self.assertIn("no data is migrated", result.stdout)
-        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.58.0")
+        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.59.0")
 
     def test_fresh_install_writes_version_0580(self):
         repo = self.fresh_install()
-        self.assertEqual(json.loads((repo / ".harness" / "manifest.json").read_text())["version"], "0.58.0")
+        self.assertEqual(json.loads((repo / ".harness" / "manifest.json").read_text())["version"], "0.59.0")
 
     def test_source_version_file_is_0580(self):
-        self.assertEqual((REPO_ROOT / "harness" / "VERSION").read_text().strip(), "0.58.0")
+        self.assertEqual((REPO_ROOT / "harness" / "VERSION").read_text().strip(), "0.59.0")
 
     def test_migrations_end_with_one_0580_entry_with_the_summary_and_the_no_data_note(self):
         module = load_installer_module()
         target = module.parse_version("0.58.0")
         entries = [entry for entry in module.MIGRATIONS if entry[0] == target]
         self.assertEqual(len(entries), 1)
-        self.assertEqual(module.MIGRATIONS[-1][0], target)
+        self.assertEqual(module.MIGRATIONS[-2][0], target)
         self.assertEqual(entries[0][1], SUMMARY)
 
 

@@ -1131,7 +1131,7 @@ class TestEdge(TelemetryTestCase):
 
 
     def test_c18_harness_version_is_0_9_0(self):
-        self.assertEqual(HARNESS_VERSION, "0.58.0")
+        self.assertEqual(HARNESS_VERSION, "0.59.0")
 
     def test_c20_update_preserves_pre_existing_post_tool_use_hook(self):
         repo = self.install()
