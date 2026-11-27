@@ -75,7 +75,7 @@ class TestUpdateReport(ReportCase):
         result = self.update_old(repo)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assert_migration_lines(result.stdout)
-        self.assertEqual(self.version(repo), "0.56.0")
+        self.assertEqual(self.version(repo), "0.57.0")
         self.assertIn("- unconfirmed AGENTS.md", self.section_lines(result.stdout, "customization"))
         self.assertEqual(self.status_lines(repo), [self.item_line("unconfirmed", AGENTS, FIVE)])
 
@@ -84,7 +84,7 @@ class TestUpdateReport(ReportCase):
         result = self.update_old(repo)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assert_migration_lines(result.stdout)
-        self.assertEqual(re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE), ["0.56.0"])
+        self.assertEqual(re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE), ["0.56.0", "0.57.0"])
         self.assertIn("- unconfirmed AGENTS.md", self.section_lines(result.stdout, "customization"))
 
     def test_the_customization_section_follows_manual_review(self):
@@ -333,7 +333,7 @@ class TestLocalPreservation(ReportCase):
         before = self.populate(repo)
         result = self.update_old(repo)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(self.version(repo), "0.56.0")
+        self.assertEqual(self.version(repo), "0.57.0")
         self.assert_preserved(repo, before)
 
     def test_update_dry_run(self):

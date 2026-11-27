@@ -1254,6 +1254,19 @@ def migrate_customization(target: Path, dry_run: bool) -> list[str]:
     ]
 
 
+def migrate_subagent_comments(target: Path, dry_run: bool) -> list[str]:
+    return [
+        "implementer and test-implementer are stopped once at hand-back to remove or justify the comments they added "
+        "in their spec paths, and list the kept ones under Comments in their report (Claude Code only)",
+        "TypeScript and JavaScript comments are detected with tree-sitter through `uv run --with` (pinned versions, "
+        "fetched once into the uv cache); `.mts`, `.cts`, `.mjs` and `.cjs` files are now checked",
+        "the comment check needs `uv` on PATH and in CI: without it the commit warning says the check could not run "
+        "and the pull request gate fails; the CI workflow gains an astral-sh/setup-uv step (re-copy it from "
+        ".harness/ci/ if the repository installed it)",
+        "no data is migrated",
+    ]
+
+
 def migrate_doggy_workflow(target: Path, dry_run: bool) -> list[str]:
     conflicts = []
     empty_dirs = []
@@ -1451,6 +1464,13 @@ MIGRATIONS = (
         "repository customizations under .harness/local/ and in AGENTS.md; refuse edited harness files, "
         "shadowing skills, invalid config, and existing .harness/git hooks",
         migrate_customization,
+    ),
+    (
+        parse_version("0.57.0"),
+        "implementer and test-implementer are stopped once to remove or justify comments they added; "
+        "TypeScript/JavaScript comments are detected with tree-sitter through uv; "
+        "the comment check needs uv on PATH and in CI",
+        migrate_subagent_comments,
     ),
 )
 

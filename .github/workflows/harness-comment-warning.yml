@@ -16,6 +16,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10.4.0
       - name: Revoke comment approval on new push
         if: github.event.action == 'synchronize'
         continue-on-error: true

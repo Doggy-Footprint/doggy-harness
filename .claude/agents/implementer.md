@@ -33,3 +33,4 @@ Never invent missing behavior, quality targets, or evidence. Stop for a Signatur
 - **Blocked** — ids and the challenge blocking each; `none` if none.
 - **Unsure** — uncertainty and what would settle it.
 - **Spec challenges** — `none`, or: `<id or heading> — uncovered | contradictory | unimplementable | out of paths — <forcing evidence>`.
+- **Comments** — each comment or docstring you added, as `path:line — category`, where category is the one it records: design constraint, external-system behavior, safety/security invariant, or reason for an odd implementation; `none` if you added none. A comment that fits no category restates the code: delete it instead of listing it.

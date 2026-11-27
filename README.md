@@ -39,6 +39,8 @@ python3 installer/harness.py install <target>
 | `.claude/settings.json` | 세션·서브에이전트·도구 훅 (기존 설정에는 병합) |
 | `.harness/git/` | 커밋 전 문서 규칙 검사와 커밋 메시지 경고. Git hook 관리자가 없으면 `core.hooksPath`를 여기로 설정 |
 | `agent-docs/` | try-n-fail, todo, spec, 사용자가 승인한 사실(`facts.md`) |
+| `.claude/settings.json`의 서브에이전트 주석 검사 | `implementer`와 `test-implementer`가 보고 직전에 자기 spec 경로에 새로 쓴 주석을 한 번 목록으로 받아, 지우거나 보고서의 Comments 항목에 범주와 함께 적게 함 (Claude Code 전용) |
+| `uv` | TypeScript/JavaScript 주석 검사는 `uv`가 PATH에 있어야 하고(CI에는 `astral-sh/setup-uv`), 없으면 커밋은 경고하고 PR 게이트는 실패 |
 | `.github/workflows/` | 새 주석이 있는 PR은 `comments-approved` 라벨이 있어야 통과 (선택) |
 
 ## 작업 흐름

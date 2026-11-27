@@ -33,3 +33,4 @@ Never choose an unspecified expected result. Stop for a Signature gap; otherwise
 - Load-check command and result.
 - Blocked obligations and uncertainties, including what would resolve them.
 - Spec challenges, or `none`: `<id or heading> — uncovered | contradictory | untestable | intent gap — <evidence>`.
+- Comments added in Tests, each as `path:line — category` (design constraint, external-system behavior, safety/security invariant, or reason for an odd implementation), or `none`. A comment that fits no category restates the test: delete it instead of listing it.

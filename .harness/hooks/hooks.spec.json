@@ -104,6 +104,22 @@
       "event": "SubagentStart",
       "targets": ["claude"],
       "command": "python3 \"{root}/.harness/hooks/customization_context.py\""
+    },
+    {
+      "event": "SubagentStart",
+      "targets": ["claude"],
+      "command": "python3 \"{root}/.harness/hooks/subagent_comments.py\""
+    },
+    {
+      "event": "SubagentStop",
+      "targets": ["claude"],
+      "command": "python3 \"{root}/.harness/hooks/subagent_comments.py\""
+    },
+    {
+      "event": "PreToolUse",
+      "matcher": "SubagentHandback",
+      "targets": ["claude"],
+      "command": "python3 \"{root}/.harness/hooks/subagent_comments.py\""
     }
   ]
 }

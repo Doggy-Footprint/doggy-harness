@@ -104,10 +104,13 @@ class R1ShebangTests(DetectionCase):
         for name, text in (
             ("s.sh", lines("echo hi", "#!/bin/sh")),
             ("s.py", lines("x = 1", "#!/usr/bin/env python3")),
-            ("s.js", lines("let x = 1;", "#!/usr/bin/env node")),
+            ("s.go", lines("x := 1", "#!/usr/bin/env node")),
         ):
             with self.subTest(name=name):
                 self.only(name, text, 2)
+
+    def test_shebang_not_on_line_one_in_js_is_not_a_comment(self):
+        self.only("s.js", lines("let x = 1;", "#!/usr/bin/env node"))
 
     def test_hash_bang_with_space_on_line_one_is_a_comment(self):
         for name in ("s.sh", "s.py"):
@@ -265,7 +268,8 @@ class R2DirectiveTests(DetectionCase):
 
     def test_directive_not_excused_in_js_or_sh(self):
         self.only("a.sh", lines("# noqa: E402", "# type: ignore", "echo # noqa"), 1, 2)
-        self.only("a.js", lines("// noqa: E402", "let x = 1; // noqa"), 1)
+        self.only("a.js", lines("// noqa: E402", "let x = 1; // noqa"), 1, 2)
+        self.only("a.go", lines("// noqa: E402", "x := 1 // noqa"), 1)
 
     def test_directive_in_fallback_file_follows_line_start_pattern(self):
         self.only("a.py", lines("x = '''", "# type: ignore", "y = 1  # noqa"), 2)
@@ -296,7 +300,11 @@ class R3FallbackTests(DetectionCase):
 class R4NonPythonTests(DetectionCase):
     def test_js_line_start_pattern(self):
         text = lines("// c", "let x = 1; // trailing", "  /* b */", "let s = `", "# h", "`;", "'''", '"""', "let y = 2;")
-        self.only("a.js", text, 1, 3, 5, 7, 8)
+        self.only("a.go", text, 1, 3, 5, 7, 8)
+
+    def test_js_comment_nodes_only(self):
+        text = lines("// c", "let x = 1; // trailing", "  /* b */", "let s = `", "# h", "`;", "let y = 2;")
+        self.only("a.js", text, 1, 2, 3)
 
     def test_sh_line_start_pattern(self):
         text = lines("#!/bin/sh", "# c", "echo hi # trailing", "  # indented", "echo done")
@@ -314,7 +322,8 @@ class R4NonPythonTests(DetectionCase):
                     self.only(name, lines("x", indent + c, "y"), 2)
 
     def test_deep_indentation_markers_quotes_in_js(self):
-        self.only("a.js", lines("a", "    '''", "\t\"\"\"", "b"), 2, 3)
+        self.only("a.go", lines("a", "    '''", "\t\"\"\"", "b"), 2, 3)
+        self.only("a.js", lines("a", "    '''", "\t\"\"\"", "b"))
 
     def test_deep_indented_shebang_lookalike_not_line_one_reported(self):
         self.only("a.sh", lines("#!/bin/sh", "    #!/bin/sh"), 2)
@@ -328,7 +337,8 @@ class R4NonPythonTests(DetectionCase):
         self.check(base, new, {("a.js", 3)})
 
     def test_python_rules_not_applied_to_js(self):
-        self.only("a.js", lines("let a = '''", "# h", "'''"), 2, 3)
+        self.only("a.go", lines("let a = '''", "# h", "'''"), 2, 3)
+        self.only("a.js", lines("let a = '''", "# h", "'''"))
 
 
 class R5Tests(DetectionCase):
@@ -451,10 +461,14 @@ class AuditGapTests(DetectionCase):
                 self.only("a.py", lines("x = 1", prefix + quote + "a", "b" + quote, "y = 1"), 2, 3)
 
     def test_more_extensions_r1_and_line_start(self):
-        for ext, marker in ((".go", "//"), (".rs", "//"), (".ts", "//"), (".rb", "#"), (".yml", "#")):
+        for ext, marker in ((".go", "//"), (".rs", "//"), (".rb", "#"), (".yml", "#")):
             with self.subTest(ext=ext):
                 self.only("f" + ext, lines("#!/usr/bin/env x", marker + " c", "    " + marker + " d", "k: 1 " + marker + " t"), 2, 3)
                 self.only("g" + ext, lines("k: 1", "#!/usr/bin/env x"), 2)
+
+    def test_ts_extension_reports_trailing_comment_and_ignores_late_shebang(self):
+        self.only("f.ts", lines("#!/usr/bin/env x", "// c", "    // d", "k: 1 // t"), 2, 3, 4)
+        self.only("g.ts", lines("k: 1", "#!/usr/bin/env x"))
 
     def test_non_utf8_bytes_inside_comment_lines(self):
         self.only("a.py", b"x = 1\n# caf\xe9 \xff\ny = 2  # t\xe9\n", 2, 3)
