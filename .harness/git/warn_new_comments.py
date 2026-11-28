@@ -16,14 +16,15 @@ APPROVAL_LABEL = "comments-approved"
 CODE_EXTENSIONS = {
     ".c", ".cc", ".cpp", ".cs", ".go", ".h", ".hpp", ".java", ".js",
     ".jsx", ".kt", ".php", ".py", ".rb", ".rs", ".sh", ".swift", ".ts",
-    ".tsx", ".yaml", ".yml", ".mts", ".cts", ".mjs", ".cjs",
+    ".tsx", ".yaml", ".yml", ".mts", ".cts", ".mjs", ".cjs", ".kts",
 }
 GRAMMAR_BY_EXTENSION = {
     ".ts": "typescript", ".mts": "typescript", ".cts": "typescript",
     ".tsx": "tsx", ".js": "tsx", ".jsx": "tsx", ".mjs": "tsx", ".cjs": "tsx",
+    ".kt": "kotlin", ".kts": "kotlin",
 }
-SCANNER = Path(__file__).resolve().with_name("ts_comments.py")
-SCANNER_PACKAGES = ("tree-sitter==0.27.0", "tree-sitter-typescript==0.23.2")
+SCANNER = Path(__file__).resolve().with_name("tree_sitter_comments.py")
+SCANNER_PACKAGES = ("tree-sitter==0.27.0", "tree-sitter-typescript==0.23.2", "tree-sitter-kotlin==1.1.0")
 STATEMENT_START_TOKENS = {tokenize.NEWLINE, tokenize.INDENT, tokenize.DEDENT, tokenize.ENCODING}
 SKIPPED_TOKENS = {tokenize.NL, tokenize.COMMENT}
 TOOL_DIRECTIVE_PATTERN = re.compile(r"#\s*(?:noqa(?::|\s|$)|(?:type|pragma|pylint|mypy|pyright|fmt|isort):)")
@@ -81,7 +82,7 @@ def _grammar(path: str) -> str | None:
     return GRAMMAR_BY_EXTENSION.get(os.path.splitext(path)[1])
 
 
-def _scan_typescript(sources: dict[str, tuple[str, str]]) -> dict[str, set[int]]:
+def _scan_with_tree_sitter(sources: dict[str, tuple[str, str]]) -> dict[str, set[int]]:
     names = ", ".join(sources)
     uv = shutil.which("uv")
     if uv is None:
@@ -123,13 +124,13 @@ def _detect_comments(
 ) -> list[tuple[str, int, str]]:
     checked = [entry for entry in files if any(entry[0].endswith(ext) for ext in CODE_EXTENSIONS)]
     contents = {path: load() if path.endswith(".py") or _grammar(path) else None for path, _, load in checked}
-    typescript = {}
+    parsed_sources = {}
     for path, added, _ in checked:
         if _grammar(path) and added:
             if contents[path] is None:
                 raise CommentScanError(f"{path}: could not read the new content")
-            typescript[path] = (_grammar(path), contents[path])
-    scanned = _scan_typescript(typescript) if typescript else {}
+            parsed_sources[path] = (_grammar(path), contents[path])
+    scanned = _scan_with_tree_sitter(parsed_sources) if parsed_sources else {}
     findings = []
     for path, added, _ in checked:
         python_lines = None

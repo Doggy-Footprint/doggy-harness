@@ -1,6 +1,8 @@
 import json
 import re
+import tempfile
 import unittest
+from pathlib import Path
 
 from legacy_migrations import skip_legacy_update
 from test_installer import REPO_ROOT, InstallerTestCase, load_installer_module, run_installer
@@ -61,11 +63,11 @@ class InstalledHookTests(InstallerTestCase):
                     self.assertEqual([l for l in text.splitlines() if l.strip()][-1], bullet)
 
     def test_o12_g4_version_file_and_migration_entry(self):
-        self.assertEqual((REPO_ROOT / "harness" / "VERSION").read_text().strip(), "0.58.0")
+        self.assertEqual((REPO_ROOT / "harness" / "VERSION").read_text().strip(), "0.59.0")
         module = load_installer_module()
         entries = [m for m in module.MIGRATIONS if m[0] == module.parse_version("0.57.0")]
         self.assertEqual(len(entries), 1)
-        self.assertEqual(module.MIGRATIONS[-2][0], module.parse_version("0.57.0"))
+        self.assertEqual(module.MIGRATIONS[-3][0], module.parse_version("0.57.0"))
         label = entries[0][1]
         for word in ("implementer", "test-implementer", "once", "comment", "tree-sitter", "uv", "PATH", "CI"):
             with self.subTest(word=word):
@@ -80,8 +82,8 @@ class InstalledHookTests(InstallerTestCase):
         skip_legacy_update(("update", str(repo)))
         result = run_installer("update", str(repo), "--no-ci", "--no-commit", input="y\n" * 10)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE), ["0.57.0", "0.58.0"])
-        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.58.0")
+        self.assertEqual(re.findall(r"^migration (\d+\.\d+\.\d+):", result.stdout, re.MULTILINE), ["0.57.0", "0.58.0", "0.59.0"])
+        self.assertEqual(json.loads(manifest_path.read_text())["version"], "0.59.0")
         hooks = json.loads((repo / ".claude" / "settings.json").read_text())["hooks"]
         self.assertEqual(sum(len(self.hook_commands(groups)) for groups in hooks.values()), 3)
         self.assertTrue((repo / ".harness" / "hooks" / HOOK).is_file())
@@ -111,3 +113,48 @@ class WorkflowOrderTests(unittest.TestCase):
         gate = self.index_of(steps, lambda s: "warn_new_comments.py" in s and "--approved" in s, "gate")
         self.assertLess(checkout, setup)
         self.assertLess(setup, gate)
+
+
+class KotlinReleaseTests(InstallerTestCase):
+    def test_o7_v1_version_file_is_0590(self):
+        self.assertEqual((REPO_ROOT / "harness" / "VERSION").read_text().strip(), "0.59.0")
+
+    def test_o7_v2_migration_label_mentions_kotlin_and_tree_sitter(self):
+        module = load_installer_module()
+        entries = [m for m in module.MIGRATIONS if m[0] == module.parse_version("0.59.0")]
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(module.MIGRATIONS[-1][0], module.parse_version("0.59.0"))
+        for word in ("Kotlin", ".kt", ".kts", "tree-sitter", "uv"):
+            with self.subTest(word=word):
+                self.assertIn(word, entries[0][1])
+
+    def planned_lines(self):
+        module = load_installer_module()
+        entries = [m for m in module.MIGRATIONS if m[0] == module.parse_version("0.59.0")]
+        self.assertEqual(len(entries), 1)
+        with tempfile.TemporaryDirectory() as directory:
+            lines = entries[0][2](Path(directory), True)
+        self.assertTrue(all(isinstance(l, str) for l in lines), lines)
+        return lines
+
+    def assert_one_line_has(self, lines, *words):
+        self.assertTrue([l for l in lines if all(w in l for w in words)], (words, lines))
+
+    def test_o7_v3_planned_line_says_kts_files_are_now_checked(self):
+        self.assert_one_line_has(self.planned_lines(), ".kts", "checked")
+
+    def test_o7_v3_planned_line_says_kotlin_now_needs_uv(self):
+        self.assert_one_line_has(self.planned_lines(), "Kotlin", "uv")
+
+    def test_o7_v3_planned_line_says_tree_sitter_kotlin_is_fetched_once_into_the_cache(self):
+        self.assert_one_line_has(self.planned_lines(), "tree-sitter-kotlin", "once", "cache")
+
+    def test_o7_v3_planned_line_says_no_data_is_migrated(self):
+        self.assert_one_line_has(self.planned_lines(), "no data")
+
+    def test_o7_v4_readme_uv_row_names_kotlin_next_to_typescript(self):
+        rows = [l for l in (REPO_ROOT / "README.md").read_text().splitlines() if l.startswith("|") and "`uv`" in l.split("|")[1]]
+        self.assertEqual(len(rows), 1, rows)
+        self.assertIn("Kotlin", rows[0])
+        self.assertIn("TypeScript", rows[0])
+        self.assertIn("JavaScript", rows[0])
